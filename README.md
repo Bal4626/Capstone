@@ -32,7 +32,6 @@ Each time you want to enter the virenv do:
 
 ```
 cd gello_software
-uv venv --python 3.11
 source .venv/bin/activate  
 ```
 
