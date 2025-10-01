@@ -40,6 +40,24 @@ Now if you want to run files in the virenv, for example if you wanna run the scr
 ```
 python ~/Downloads/test.py
 ```
+Should you wanna run the file that is located in the gello_software folder just run:
+
+```
+python test.py
+```
+If you wanan see the packages you have installed in your virenv
+```
+pip list
+```
+If you want to check if you have a specfic package type, for example dynamixel, type:
+```
+pip list | grep dynamixel
+```
+
+
+
+
+
 
 Control UR5 using gello/robots/ur.py through RTDE library
 
