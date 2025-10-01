@@ -40,3 +40,6 @@ Now if you want to run files in the virenv, for example if you wanna run the scr
 ```
 python ~/Downloads/test.py
 ```
+
+
+test test
