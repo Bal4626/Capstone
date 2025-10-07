@@ -1,6 +1,6 @@
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field #balraj added import field
 from typing import Dict, Optional
 
 import numpy as np
@@ -39,7 +39,8 @@ class SpacemouseConfig:
     angle_scale: float = 0.24
     translation_scale: float = 0.06
     # only control the xyz, rotation direction, not the gripper
-    invert_control: np.ndarray = np.ones(6)
+    #invert_control: np.ndarray = np.ones(6) Balraj changed this
+    invert_control: np.ndarray = field(default_factory=lambda: np.ones(6))
     rotation_mode: str = "euler"
 
 
@@ -64,7 +65,8 @@ class SpacemouseAgent(Agent):
         self._verbose = verbose
         if self._verbose:
             print(f"robot_type: {robot_type}")
-        if robot_type == "ur5":
+        #if robot_type == "ur5": Balraj changed this
+        if robot_type in ("ur5", "ur5e", "sim_ur"):
             _robot = UR5e()
         else:
             raise ValueError(f"Unknown robot type: {robot_type}")
@@ -220,5 +222,7 @@ class SpacemouseAgent(Agent):
 if __name__ == "__main__":
     import pyspacemouse
 
-    success = pyspacemouse.open("/dev/hidraw4")
-    success = pyspacemouse.open("/dev/hidraw5")
+    #success = pyspacemouse.open("/dev/hidraw4")
+    #success = pyspacemouse.open("/dev/hidraw5")
+    success = pyspacemouse.open()  # auto-detect
+

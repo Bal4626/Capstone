@@ -6,10 +6,12 @@ from typing import Optional, Tuple
 import numpy as np
 import tyro
 
+from gello.agents.teleop_agent import TeleopAgent
 from gello.env import RobotEnv
 from gello.robots.robot import PrintRobot
 from gello.utils.launch_utils import instantiate_from_dict
 from gello.zmq_core.robot_node import ZMQClientRobot
+from mujoco import glfw
 
 
 def print_color(*args, color=None, attrs=(), **kwargs):
@@ -121,6 +123,7 @@ def main(args):
         for jnt in np.linspace(curr_joints, reset_joints, steps):
             env.step(jnt)
     else:
+
         if args.agent == "gello":
             gello_port = args.gello_port
             if gello_port is None:
@@ -153,6 +156,8 @@ def main(args):
                 for jnt in np.linspace(curr_joints, reset_joints, steps):
                     env.step(jnt)
                     time.sleep(0.001)
+
+        
         elif args.agent == "quest":
             agent_cfg = {
                 "_target_": "gello.agents.quest_agent.SingleArmQuestAgent",
@@ -165,6 +170,19 @@ def main(args):
                 "robot_type": args.robot_type,
                 "verbose": args.verbose,
             }
+
+        elif args.agent == "force_control":
+            agent_cfg = {
+                "_target_": "gello.agents.force_control_agent.ForceControlAgent",
+                "num_dofs": robot_client.num_dofs(),
+            }
+        
+        elif args.agent == "teleop":
+            agent_cfg = {
+                "_target_": "gello.agents.teleop_agent.TeleopAgent",
+                "num_dofs": robot_client.num_dofs(),
+            }
+    
         elif args.agent == "dummy" or args.agent == "none":
             agent_cfg = {
                 "_target_": "gello.agents.agent.DummyAgent",
