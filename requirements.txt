@@ -1,22 +1,21 @@
-# core runtime (alphabetical)
-dm_control            # if you use mujoco/dm_control sim; else remove
-numpy
+# keep in alphabetical order
+dm_control
 omegaconf==2.3.0
 Pillow
 pin==3.7.0
-pygame                # only if you actually use it
+pygame
+pyspacemouse
+PyQt6
 pyquaternion
-pyrealsense2          # only if you have intel realsense; else remove
+pyrealsense2
 pyzmq
+pure-python-adb
 quaternion
-termcolor
+setuptools
 tyro
-ur-rtde               # only if you run UR in hardware; else optional
-xarm                  # only if you target xArm
-xarm-python-sdk       # only if you target xArm
+ur-rtde
 zmq
-
-# hardware options (leave commented unless needed)
-dynamixel-sdk       # add if you use the master arm servos
-pyspacemouse        # add if you use spacemouse
-PyQt6               # add if you use Qt viewer
+xarm
+xarm-python-sdk
+numpy-quaternion
+termcolor
