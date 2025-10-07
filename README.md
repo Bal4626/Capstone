@@ -35,6 +35,23 @@ cd gello_software
 source .venv/bin/activate  
 ```
 
+## Force Control
+Now open 2 terminals and while being in the virenv 
+```
+python experiments/run_env.py --agent force_control --robot-type sim_ur
+```
+and in the other terminal run this to launch the UI
+```
+ python experiments/launch_nodes.py --robot sim_ur
+
+```
+
+## Teleop (not done)
+```
+python experiments/run_env.py --agent teleop --robot-type sim_ur
+python experiments/run_env.py --agent=teleop --robot_port 6001 --mock
+```
+
 Now if you want to run files in the virenv, for example if you wanna run the script test.py located in /Downloads/test.py, you need to type:
 
 ```
