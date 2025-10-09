@@ -71,7 +71,26 @@ If you want to check if you have a specfic package type, for example dynamixel, 
 pip list | grep dynamixel
 ```
 
+## Collecting data on the simulation
 
+Enter the virenv then run this in one terminal
+```
+python experiments/launch_nodes.py --robot sim_ur
+
+```
+
+Run this in the virenv in one terminal replace the agent name with your own agent.
+```
+python experiments/run_env.py --agent=force_control --robot-type=sim_ur --use-save-interface
+
+```
+Press S to start recording and press Q to stop recording
+
+Then exit the terminal and then to process the data run
+```
+python -m gello.data_utils.demo_to_gdict --source-dir="/home/balraj/bc_data"
+
+```
 
 
 
