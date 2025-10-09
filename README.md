@@ -91,261 +91,93 @@ Then exit the terminal and then to process the data run
 python -m gello.data_utils.demo_to_gdict --source-dir="/home/balraj/bc_data"
 
 ```
+## ====== Minimal end-to-end chain (UR5e + RealSense + GELLO agent) edit IP + SERIAL_* first
 
+# ---------------------------
+# Terminal 1 — Robot server
+# (keep this running)
+# ---------------------------
+```
+source .venv/bin/activate
+python experiments/launch_nodes.py --robot ur5e --robot-ip 192.168.0.10
+```
+# ---------------------------
+# Terminal 2 — Wrist RealSense
+# (keep this running)
+# ---------------------------
+```
+source .venv/bin/activate
+python experiments/launch_camera.py --type realsense --serial SERIAL_WRIST --name wrist --keys wrist_rgb wrist_depth --fps 30 --res 640x480
+```
+# ---------------------------
+# Terminal 3 — Base RealSense
+# (keep this running)
+# ---------------------------
+```
+source .venv/bin/activate
+python experiments/launch_camera.py --type realsense --serial SERIAL_BASE --name base --keys rgb depth --fps 30 --res 640x480
+```
+# ---------------------------
+# Terminal 4 — Teleop + saver UI
+# (press 's' to start, 'q' to stop; keep focused while recording)
+# ---------------------------
+```
+source .venv/bin/activate
+python experiments/run_env.py --agent=gello --robot-type=ur5e --use-save-interface
+```
+# ---------------------------
+# Terminal 5 — Process (offline)
+# (run AFTER you stop recording; can be any terminal)
+# ---------------------------
+```
+source .venv/bin/activate
+python -m gello.data_utils.demo_to_gdict --source-dir="data"
+```
 
+## ====== Alternative chain (UR5e + 2x UVC webcams + keyboard/teleop agent) edit IP + /dev/video* first
 
+# ---------------------------
+# Terminal 1 — Robot server
+# (keep this running)
+# ---------------------------
+```
+source .venv/bin/activate
+python experiments/launch_nodes.py --robot ur5e --robot-ip 192.168.0.10
+```
+# ---------------------------
+# Terminal 2 — Wrist UVC webcam (RGB only)
+# (keep this running)
+# ---------------------------
+```
+source .venv/bin/activate
+python experiments/launch_camera.py --type uvc --device /dev/video0 --name wrist --keys wrist_rgb
+```
+# ---------------------------
+# Terminal 3 — Base UVC webcam (RGB only)
+# (keep this running)
+# ---------------------------
+```
+source .venv/bin/activate
+python experiments/launch_camera.py --type uvc --device /dev/video1 --name base --keys rgb
+```
+# ---------------------------
+# Terminal 4 — Teleop + saver UI
+# (press 's' to start, 'q' to stop; keep focused while recording)
+# ---------------------------
+```
+source .venv/bin/activate
+python experiments/run_env.py --agent=teleop --robot-type=ur5e --use-save-interface
+```
+# ---------------------------
+# Terminal 5 — Process (offline)
+# (run AFTER you stop recording; can be any terminal)
+# ---------------------------
+```
+source .venv/bin/activate
+python -m gello.data_utils.demo_to_gdict --source-dir="data"
+```
 
 Control UR5 using gello/robots/ur.py through RTDE library
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # GELLO: General, Low-Cost, and Intuitive Teleoperation Framework
