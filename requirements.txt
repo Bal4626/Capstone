@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # keep in alphabetical order
 dm_control
 omegaconf==2.3.0
@@ -19,3 +20,27 @@ xarm
 xarm-python-sdk
 numpy-quaternion
 termcolor
+=======
+# core runtime (alphabetical)
+dm_control            # if you use mujoco/dm_control sim; else remove
+numpy
+omegaconf==2.3.0
+Pillow
+pin==3.7.0
+pygame                # only if you actually use it
+pyquaternion
+pyrealsense2          # only if you have intel realsense; else remove
+pyzmq
+quaternion
+termcolor
+tyro
+ur-rtde               # only if you run UR in hardware; else optional
+xarm                  # only if you target xArm
+xarm-python-sdk       # only if you target xArm
+zmq
+
+# hardware options (leave commented unless needed)
+dynamixel-sdk       # add if you use the master arm servos
+pyspacemouse        # add if you use spacemouse
+PyQt6               # add if you use Qt viewer
+>>>>>>> 9b3240d (added more code so i can run on sim more smoothly)

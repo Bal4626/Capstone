@@ -20,6 +20,15 @@ def to_numpy(array):
         return array.cpu().numpy()
     return array
 
+def _img_or_none(arr, channels_first=True):
+    if arr is None:
+        return None
+    a = np.asarray(arr)
+    # if HxWxC, move channels first
+    if channels_first and a.ndim == 3 and a.shape[-1] in (1, 3):
+        a = a.transpose(2, 0, 1)
+    return a
+
 
 def center_crop(rgb_frame, depth_frame):
     H, W = rgb_frame.shape[-2:]
@@ -53,50 +62,92 @@ def filter_depth(depth, max_depth=2.0, min_depth=0.0):
     return depth
 
 
-def preproc_obs(
-    demo: Dict[str, np.ndarray], joint_only: bool = True
-) -> Dict[str, np.ndarray]:
-    # c h w
-    rgb_wrist = demo.get(f"wrist_rgb").transpose([2, 0, 1]) * 1.0  # type: ignore
-    depth_wrist = demo.get(f"wrist_depth").transpose([2, 0, 1]) * 1.0  # type: ignore
-    rgb_base = demo.get("base_rgb").transpose([2, 0, 1]) * 1.0  # type: ignore
-    depth_base = demo.get("base_depth").transpose([2, 0, 1]) * 1.0  # type: ignore
+# def preproc_obs(
+#     demo: Dict[str, np.ndarray], joint_only: bool = True
+# ) -> Dict[str, np.ndarray]:
+#     # c h w
+#     rgb_wrist = demo.get(f"wrist_rgb").transpose([2, 0, 1]) * 1.0  # type: ignore
+#     depth_wrist = demo.get(f"wrist_depth").transpose([2, 0, 1]) * 1.0  # type: ignore
+#     rgb_base = demo.get("base_rgb").transpose([2, 0, 1]) * 1.0  # type: ignore
+#     depth_base = demo.get("base_depth").transpose([2, 0, 1]) * 1.0  # type: ignore
 
-    # Center crop and fitler depth
-    rgb_wrist, depth_wrist = resize(*center_crop(rgb_wrist, depth_wrist))
-    rgb_base, depth_base = resize(*center_crop(rgb_base, depth_base))
+#     # Center crop and fitler depth
+#     rgb_wrist, depth_wrist = resize(*center_crop(rgb_wrist, depth_wrist))
+#     rgb_base, depth_base = resize(*center_crop(rgb_base, depth_base))
 
-    depth_wrist = filter_depth(depth_wrist)
-    depth_base = filter_depth(depth_base)
+#     depth_wrist = filter_depth(depth_wrist)
+#     depth_base = filter_depth(depth_base)
 
-    rgb = np.stack([rgb_wrist, rgb_base], axis=0)
-    depth = np.stack([depth_wrist, depth_base], axis=0)
+#     rgb = np.stack([rgb_wrist, rgb_base], axis=0)
+#     depth = np.stack([depth_wrist, depth_base], axis=0)
 
-    # Dummy
-    dummy_cam = np.eye(4)
-    K = np.eye(3)
+#     # Dummy
+#     dummy_cam = np.eye(4)
+#     K = np.eye(3)
 
-    # state
-    qpos, qvel, ee_pos_quat, gripper_pos = (
-        demo.get("joint_positions"),  # type: ignore
-        demo.get("joint_velocities"),  # type: ignore
-        demo.get("ee_pos_quat"),  # type: ignore
-        demo.get("gripper_position"),  # type: ignore
-    )
+#     # state
+#     qpos, qvel, ee_pos_quat, gripper_pos = (
+#         demo.get("joint_positions"),  # type: ignore
+#         demo.get("joint_velocities"),  # type: ignore
+#         demo.get("ee_pos_quat"),  # type: ignore
+#         demo.get("gripper_position"),  # type: ignore
+#     )
 
-    if joint_only:
-        state: np.ndarray = qpos
+#     if joint_only:
+#         state: np.ndarray = qpos
+#     else:
+#         state: np.ndarray = np.concatenate([qpos, qvel, ee_pos_quat, gripper_pos[None]])
+
+#     return {
+#         "rgb": rgb,
+#         "depth": depth,
+#         "camera_poses": dummy_cam,
+#         "K_matrices": K,
+#         "state": state,
+#     }
+def preproc_obs(demo):
+    """
+    Build an obs dict that always has 'state' and only includes 'rgb'/'depth'
+    if they exist in the demo.
+    """
+    # 1) state
+    state = demo.get("state")
+    if state is None:
+        parts = []
+        for k in ["qpos", "qvel", "tcp_pose", "force", "torque", "eef_force", "eef_torque"]:
+            v = demo.get(k)
+            if v is not None:
+                v = np.asarray(v, dtype=np.float32).ravel()
+                parts.append(v)
+        state = np.concatenate(parts) if parts else np.zeros(1, dtype=np.float32)
     else:
-        state: np.ndarray = np.concatenate([qpos, qvel, ee_pos_quat, gripper_pos[None]])
+        state = np.asarray(state, dtype=np.float32).ravel()
 
-    return {
-        "rgb": rgb,
-        "depth": depth,
-        "camera_poses": dummy_cam,
-        "K_matrices": K,
-        "state": state,
-    }
+    obs = {"state": state}
 
+    # 2) optional vision
+    rgb_wrist  = _img_or_none(demo.get("wrist_rgb"))
+    depth_wrist = demo.get("wrist_depth")
+    if depth_wrist is not None:
+        depth_wrist = np.asarray(depth_wrist, dtype=np.float32)
+
+    rgb_base = _img_or_none(demo.get("rgb"))
+    depth_base = demo.get("depth")
+    if depth_base is not None:
+        depth_base = np.asarray(depth_base, dtype=np.float32)
+
+    rgbs, depths = [], []
+    if rgb_wrist is not None: rgbs.append(rgb_wrist)
+    if rgb_base  is not None: rgbs.append(rgb_base)
+    if depth_wrist is not None: depths.append(depth_wrist)
+    if depth_base  is not None: depths.append(depth_base)
+
+    if rgbs:
+        obs["rgb"] = np.stack(rgbs, axis=0)    # (num_cams, C, H, W)
+    if depths:
+        obs["depth"] = np.stack(depths, axis=0)  # (num_cams, H, W)
+
+    return obs
 
 class Pose(object):
     def __init__(self, x, y, z, qw, qx, qy, qz):

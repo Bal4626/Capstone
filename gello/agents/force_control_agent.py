@@ -20,7 +20,7 @@ class ForceControlAgent(Agent):
 
         # Target posture (ensure length matches DOFs)
         
-        self.target = np.deg2rad([-100, 20, 80, -60, 50, 70, -40])
+        self.target = np.deg2rad([-100, 20, 20, -60, 70, 70, -40])
         print("Target (deg):", np.round(np.rad2deg(self.target), 1))
 
         # Create log file with header
@@ -57,12 +57,12 @@ class ForceControlAgent(Agent):
         if self.num_dofs >= 3:
             force_term[-3:] = self.force_gain * fz / 3.0  # rad/s from N (very small)
 
-        # --- Posture term: move toward target (as velocities) ---
-        posture_term =  self.post_gain * (self.target - qpos)  # rad/s
+        # # --- Posture term: move toward target (as velocities) ---
+        # posture_term =  self.post_gain * (self.target - qpos)  # rad/s
 
-        # --- Blend & clip joint velocities ---
-        qvel_cmd = posture_term + force_term
-        qvel_cmd = np.clip(qvel_cmd, -0.2, 0.2)  # rad/s safety
+        # # --- Blend & clip joint velocities ---
+        # qvel_cmd = posture_term + force_term
+        # qvel_cmd = np.clip(qvel_cmd, -0.2, 0.2)  # rad/s safety
 
         # --- Log ---
         with open(self.log_path, "a") as f:

@@ -78,7 +78,7 @@ def get_act_min_max(source_dir: str) -> Tuple[np.ndarray, np.ndarray]:
         else:
             assert scale_max is not None
             scale_min = np.minimum(scale_min, curr_scale_factor)
-            scale_max = np.maximum(scale_min, curr_scale_factor)
+            scale_max = np.maximum(scale_max, curr_scale_factor)
 
     assert scale_min is not None
     assert scale_max is not None
@@ -139,6 +139,23 @@ def convert_single_demo(
 
     demo_dict = DictArray.stack(demo_stack)
     GDict.to_hdf5(demo_dict, os.path.join(traj_output_dir + "", f"traj_{i}.h5"))
+
+    #### INSERTED GUARD AGAINST EMPTY DEMOS ####
+    # If no RGB/Depth present, skip video writing but still save state/action plots
+    has_vision = ("rgb" in demo_dict[f"traj_{i}"]["obs"]) and ("depth" in demo_dict[f"traj_{i}"]["obs"])
+    if not has_vision:
+        # still plot actions/states and return only those for aggregation
+        all_actions = demo_dict[f"traj_{i}"]["actions"]
+        all_states  = demo_dict[f"traj_{i}"]["obs"]["state"]
+
+        curr_actions = all_actions.reshape([1, *all_actions.shape])
+        curr_states  = all_states.reshape([-1, *all_states.shape])
+
+        plot_in_grid(curr_actions, os.path.join(action_output_dir + "", f"traj_{i}_actions.png"))
+        plot_in_grid(curr_states,  os.path.join(state_output_dir + "",  f"traj_{i}_states.png"))
+
+        # no videos to aggregate; signal caller to skip grid-video aggregation
+        return 0
 
     ## save the base videos
     # save the base rgb and depth videos
