@@ -12,6 +12,8 @@ class URRobot(Robot):
         import rtde_control
         import rtde_receive
 
+        robot_ip = "192.168.20.25"
+
         [print("in ur robot") for _ in range(4)]
         try:
             self.robot = rtde_control.RTDEControlInterface(robot_ip)

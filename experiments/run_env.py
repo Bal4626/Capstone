@@ -6,10 +6,27 @@ from typing import Optional, Tuple
 import numpy as np
 import tyro
 
+from gello import env
+from gello.agents import agent
 from gello.env import RobotEnv
 from gello.robots.robot import PrintRobot
 from gello.utils.launch_utils import instantiate_from_dict
 from gello.zmq_core.robot_node import ZMQClientRobot
+
+
+
+def _match_dofs(vec, dof: int):
+    """Return vec as np.ndarray of length == dof. If vec is longer by 1 (gripper), drop the last."""
+    if vec is None:
+        return None
+    v = np.asarray(vec, dtype=float).reshape(-1)
+    if v.size == dof + 1:
+        v = v[:dof]          # drop gripper
+    elif v.size > dof:
+        v = v[:dof]          # be safe
+    elif v.size < dof:
+        v = np.pad(v, (0, dof - v.size))
+    return v
 
 
 def print_color(*args, color=None, attrs=(), **kwargs):
@@ -111,8 +128,8 @@ def main(args):
 
         # System setup specific. This reset configuration works well on our setup. If you are mounting the robot
         # differently, you need a separate reset joint configuration.
-        reset_joints_left = np.deg2rad([0, -90, -90, -90, 90, 0, 0])
-        reset_joints_right = np.deg2rad([0, -90, 90, -90, -90, 0, 0])
+        reset_joints_left = np.deg2rad([0, -90, -90, -90, 90, 0])
+        reset_joints_right = np.deg2rad([0, -90, 90, -90, -90, 0])
         reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
         curr_joints = env.get_obs()["joint_positions"]
         max_delta = (np.abs(curr_joints - reset_joints)).max()
@@ -140,12 +157,16 @@ def main(args):
             }
             if args.start_joints is None:
                 reset_joints = np.deg2rad(
-                    [0, -90, 90, -90, -90, 0, 0]
-                )  # Change this to your own reset joints
+                    [90, -90, 90, -90, -90, 0]
+                )  # Change this to your own reset joints for the starting position
             else:
                 reset_joints = np.array(args.start_joints)
 
-            curr_joints = env.get_obs()["joint_positions"]
+            # curr_joints = env.get_obs()["joint_positions"]
+            # curr_joints = np.array(curr_joints)
+
+            curr_joints = np.asarray(env.get_obs()["joint_positions"], dtype=float).reshape(-1)
+            reset_joints = _match_dofs(reset_joints, curr_joints.size)
             if reset_joints.shape == curr_joints.shape:
                 max_delta = (np.abs(curr_joints - reset_joints)).max()
                 steps = min(int(max_delta / 0.01), 100)
@@ -180,7 +201,18 @@ def main(args):
     print("Going to start position")
     start_pos = agent.act(env.get_obs())
     obs = env.get_obs()
-    joints = obs["joint_positions"]
+    #joints = obs["joint_positions"]
+    joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)  # (6,)
+    start_pos = _match_dofs(start_pos, joints.size)
+
+    # # Ensure numpy arrays
+    # joints = np.asarray(joints, dtype=float).reshape(-1)         # (6,)
+    # start_pos = np.asarray(start_pos, dtype=float).reshape(-1)    # (7,) currently
+
+    # # Drop gripper if present
+    # if start_pos.size == joints.size + 1:
+    #     start_pos = start_pos[:joints.size]
+
 
     abs_deltas = np.abs(start_pos - joints)
     id_max_joint_delta = np.argmax(abs_deltas)
@@ -209,8 +241,13 @@ def main(args):
     max_delta = 0.05
     for _ in range(25):
         obs = env.get_obs()
-        command_joints = agent.act(obs)
-        current_joints = obs["joint_positions"]
+        # command_joints = agent.act(obs)
+        # current_joints = obs["joint_positions"]
+
+        current_joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
+        command_joints = _match_dofs(agent.act(obs), current_joints.size)
+
+
         delta = command_joints - current_joints
         max_joint_delta = np.abs(delta).max()
         if max_joint_delta > max_delta:
@@ -218,8 +255,11 @@ def main(args):
         env.step(current_joints + delta)
 
     obs = env.get_obs()
-    joints = obs["joint_positions"]
-    action = agent.act(obs)
+    # joints = obs["joint_positions"]
+    # action = agent.act(obs)
+
+    joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
+    action = _match_dofs(agent.act(obs), joints.size)
     if (action - joints > 0.5).any():
         print("Action is too big")
 
