@@ -8,33 +8,66 @@ from gello.robots.robot import Robot
 class URRobot(Robot):
     """A class representing a UR robot."""
 
+#     def __init__(self, robot_ip: str = "192.168.1.10", no_gripper: bool = False):
+#         import rtde_control
+#         import rtde_receive
+
+#         robot_ip = "192.168.201.101" # need to change IP Balraj
+
+#         [print("in ur robot") for _ in range(4)]
+#         try:
+#             self.robot = rtde_control.RTDEControlInterface(robot_ip)
+#         except Exception as e:
+#             print(e)
+#             print(robot_ip)
+
+#         self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
+#         if not no_gripper:
+#             from gello.robots.robotiq_gripper import RobotiqGripper
+
+
+# # commented by balraj out those lines to use the ur robot with the digital gripper
+#             self.gripper = RobotiqGripper()
+#             self.gripper.connect(hostname=robot_ip, port=63352)
+#             print("gripper connected")
+#             ###
+
+
+#             # gripper.activate()
+
+#         [print("connect") for _ in range(4)]
+
+#         self._free_drive = False
+#         self.robot.endFreedriveMode()
+#         self._use_gripper = not no_gripper
+
+
     def __init__(self, robot_ip: str = "192.168.1.10", no_gripper: bool = False):
-        import rtde_control
-        import rtde_receive
+        import rtde_control, rtde_receive
+        from gello.robots.robotiq_gripper import RobotiqGripper
 
-        robot_ip = "192.168.20.25"
+        robot_ip = "192.168.201.101" # need to change IP Balraj
 
-        [print("in ur robot") for _ in range(4)]
-        try:
-            self.robot = rtde_control.RTDEControlInterface(robot_ip)
-        except Exception as e:
-            print(e)
-            print(robot_ip)
 
+        self.robot = rtde_control.RTDEControlInterface(robot_ip)
         self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
-        if not no_gripper:
-            from gello.robots.robotiq_gripper import RobotiqGripper
 
-            self.gripper = RobotiqGripper()
-            self.gripper.connect(hostname=robot_ip, port=63352)
-            print("gripper connected")
-            # gripper.activate()
+        #self._use_gripper = not no_gripper
+        self._use_gripper = False
+        self.gripper = None
 
-        [print("connect") for _ in range(4)]
+        if self._use_gripper:
+            try:
+                self.gripper = RobotiqGripper()
+                self.gripper.connect(hostname=robot_ip, port=63352)
+                print("✅ Gripper connected")
+            except Exception as e:
+                print(f"⚠️ Gripper not available: {e}")
+                self._use_gripper = False  # disable gripper safely
 
         self._free_drive = False
         self.robot.endFreedriveMode()
-        self._use_gripper = not no_gripper
+
 
     def num_dofs(self) -> int:
         """Get the number of joints of the robot.
@@ -69,6 +102,11 @@ class URRobot(Robot):
         return pos
 
     def command_joint_state(self, joint_state: np.ndarray) -> None:
+
+        # --- FIX: handle 7 inputs (6 arm + 1 gripper) safely ---
+        # if len(joint_state) > 6:
+        #     joint_state = joint_state[:6]
+        # -------------------------------------------------------
         """Command the leader robot to a given state.
 
         Args:
@@ -114,7 +152,9 @@ class URRobot(Robot):
     def get_observations(self) -> Dict[str, np.ndarray]:
         joints = self.get_joint_state()
         pos_quat = np.zeros(7)
-        gripper_pos = np.array([joints[-1]])
+        #gripper_pos = np.array([joints[-1]])
+        gripper_pos = np.array([0.0]) if not self._use_gripper else np.array([joints[-1]])
+
         return {
             "joint_positions": joints,
             "joint_velocities": joints,
@@ -125,7 +165,8 @@ class URRobot(Robot):
 
 def main():
     robot_ip = "192.168.1.11"
-    ur = URRobot(robot_ip, no_gripper=True)
+    #ur = URRobot(robot_ip, no_gripper=True)  changed by balraj to auto disable gripper if not connected
+    ur = URRobot(robot_ip=robot_ip , no_gripper=False)  # tries gripper, disables if fail
     print(ur)
     ur.set_freedrive_mode(True)
     print(ur.get_observations())
@@ -133,3 +174,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+

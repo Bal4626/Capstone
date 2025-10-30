@@ -49,6 +49,11 @@ class RobotEnv:
         Returns:
             obs: observation from the environment.
         """
+        # --- FIX: handle gripper joint when robot has only 6 DOFs ---
+        if len(joints) > self._robot.num_dofs():
+            joints = joints[: self._robot.num_dofs()]
+        # -------------------------------------------------------------
+
         assert len(joints) == (
             self._robot.num_dofs()
         ), f"input:{len(joints)}, robot:{self._robot.num_dofs()}"

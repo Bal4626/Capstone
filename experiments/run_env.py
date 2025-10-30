@@ -167,6 +167,7 @@ def main(args):
 
             curr_joints = np.asarray(env.get_obs()["joint_positions"], dtype=float).reshape(-1)
             reset_joints = _match_dofs(reset_joints, curr_joints.size)
+
             if reset_joints.shape == curr_joints.shape:
                 max_delta = (np.abs(curr_joints - reset_joints)).max()
                 steps = min(int(max_delta / 0.01), 100)
@@ -201,9 +202,10 @@ def main(args):
     print("Going to start position")
     start_pos = agent.act(env.get_obs())
     obs = env.get_obs()
+
     #joints = obs["joint_positions"]
-    joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)  # (6,)
-    start_pos = _match_dofs(start_pos, joints.size)
+    joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)  # (6,) changed
+    start_pos = _match_dofs(start_pos, joints.size) #changed
 
     # # Ensure numpy arrays
     # joints = np.asarray(joints, dtype=float).reshape(-1)         # (6,)
