@@ -134,4 +134,7 @@ class DynamixelRobot(Robot):
         self._torque_on = mode
 
     def get_observations(self) -> Dict[str, np.ndarray]:
+
+        print("Ur5e joint Position:", self.get_joint_state())# we added this line
+
         return {"joint_state": self.get_joint_state()}

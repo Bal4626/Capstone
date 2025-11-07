@@ -113,6 +113,7 @@ class URRobot(Robot):
 
     def get_observations(self) -> Dict[str, np.ndarray]:
         joints = self.get_joint_state()
+        print("ur5 joints:", joints) # we added this line
         pos_quat = np.zeros(7)
         gripper_pos = np.array([joints[-1]])
         return {
