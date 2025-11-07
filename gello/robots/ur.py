@@ -46,13 +46,20 @@ class URRobot(Robot):
             return 7
         return 6
 
-    def _get_gripper_pos(self) -> float:
-        import time
+    # def _get_gripper_pos(self) -> float:
+    #     import time
 
-        time.sleep(0.01)
-        gripper_pos = self.gripper.get_current_position()
-        assert 0 <= gripper_pos <= 255, "Gripper position must be between 0 and 255"
-        return gripper_pos / 255
+    #     time.sleep(0.01)
+    #     gripper_pos = self.gripper.get_current_position()
+    #     assert 0 <= gripper_pos <= 255, "Gripper position must be between 0 and 255"
+    #     return gripper_pos / 255
+    
+
+
+
+
+
+
 
     def get_joint_state(self) -> np.ndarray:
         """Get the current state of the leader robot.
@@ -67,6 +74,9 @@ class URRobot(Robot):
         else:
             pos = robot_joints
         return pos
+    
+
+    
 
     def command_joint_state(self, joint_state: np.ndarray) -> None:
         """Command the leader robot to a given state.

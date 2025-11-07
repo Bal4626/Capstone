@@ -205,7 +205,9 @@ def main(args):
     joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)  # (6,)
     start_pos = _match_dofs(start_pos, joints.size)
 
-    # # Ensure numpy arrays
+
+
+    # Ensure numpy arrays
     # joints = np.asarray(joints, dtype=float).reshape(-1)         # (6,)
     # start_pos = np.asarray(start_pos, dtype=float).reshape(-1)    # (7,) currently
 
