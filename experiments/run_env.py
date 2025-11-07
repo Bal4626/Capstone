@@ -5,6 +5,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 import tyro
+from pathlib import Path
+import json
 
 from gello import env
 from gello.agents import agent
@@ -231,6 +233,21 @@ def main(args):
             print(
                 f"joint[{i}]: \t delta: {delta:4.3f} , leader: \t{joint:4.3f} , follower: \t{current_j:4.3f}"
             )
+
+        offset_file = Path("offset.json")
+        if not offset_file.exists():
+            print("⚠️ offsets.json not found, cannot save deltas.")
+        else:
+            with open(offset_file, "r") as f:
+                data = json.load(f)
+
+            # Save computed deltas
+            data["deltas"] = [float(x) for x in abs_deltas]
+
+            with open(offset_file, "w") as f:
+                json.dump(data, f, indent=4)
+
+            print(f"✅ Deltas saved to {offset_file.resolve()}")
         return
 
     print(f"Start pos: {len(start_pos)}", f"Joints: {len(joints)}")

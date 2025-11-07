@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Sequence, Tuple
 
 import numpy as np
+import json
 
 from gello.agents.agent import Agent
 from gello.robots.dynamixel import DynamixelRobot
@@ -41,7 +42,29 @@ class DynamixelRobotConfig:
             gripper_config=self.gripper_config,
             start_joints=start_joints,
         )
+    
+def load_offsets_json(path="offset.json"):
+    """Load offsets and deltas from offsets.json."""
+    if not os.path.exists(path):
+        print("⚠️ offsets.json not found, using defaults.")
+        return None, None
+    with open(path, "r") as f:
+        data = json.load(f)
+    offsets = np.array(data.get("offsets", []), dtype=float)
+    deltas = np.array(data.get("deltas", []), dtype=float)
+    return offsets, deltas
 
+offsets, deltas = load_offsets_json()
+
+if offsets is not None and len(offsets) == 6:
+    print(f"Loaded offsets: {offsets}")
+    if deltas is not None and len(deltas) == 6:
+        print(f"Loaded deltas: {deltas}")
+        joint_offsets = tuple(_offset + _delta for _offset, _delta in zip(offsets, deltas))
+    else:
+        joint_offsets = tuple(offsets)
+else:
+    joint_offsets = (0, 0, 0, 0, 0, 0)  # fallback
 
 PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
     # xArm
@@ -109,14 +132,7 @@ PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
     # new config for master arm
     "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NNNU-if00-port0": DynamixelRobotConfig(
         joint_ids=(1, 2, 3, 4, 5, 6),
-        joint_offsets=(
-            1 * np.pi / 2,
-            3 * np.pi / 2,
-            2 * np.pi / 2,
-            2 * np.pi / 2,
-            4 * np.pi / 2,
-            1 * np.pi / 2,
-        ),
+        joint_offsets=joint_offsets,
         joint_signs=(1, 1, -1, 1, 1, 1), 
         gripper_config=(7, 282, 240),  # Reversed: now starts open (-30) and closes on press (24) 
     ),

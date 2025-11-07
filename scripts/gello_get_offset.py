@@ -93,6 +93,15 @@ def get_config(args: Args) -> None:
                 np.rad2deg(driver.get_joints()[-1]) - 42,
             )
 
+        offset_json_path = Path("offset.json")
+        offsets_data = {
+            "offsets": [float(x) for x in best_offsets],
+        }
+        import json
+        with open(offset_json_path, "w") as f:
+            json.dump(offsets_data, f, indent=4)
+        print(f"\nOffsets saved to {offset_json_path.resolve()}")
+
 
 def main(args: Args) -> None:
     get_config(args)
