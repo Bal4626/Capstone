@@ -352,7 +352,7 @@ def main():
 
 
 
-    # gripper.activate()
+    #gripper.activate()
 
 
     

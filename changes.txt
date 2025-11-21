@@ -1,0 +1,1158 @@
+diff --git a/arena.xml b/arena.xml
+new file mode 100644
+index 0000000..a8a004f
+--- /dev/null
++++ b/arena.xml
+@@ -0,0 +1,273 @@
++<mujoco model="unnamed_model">
++  <compiler autolimits="true" angle="radian"/>
++  <option impratio="10" integrator="implicitfast" cone="elliptic"/>
++  <default>
++    <default class="/"/>
++    <default class="ur5e/">
++      <default class="ur5e/ur5e">
++        <material specular="0.5" shininess="0.25"/>
++        <joint axis="0 1 0" range="-6.2831900000000003 6.2831900000000003" armature="0.10000000000000001"/>
++        <site group="4" rgba="0.5 0.5 0.5 0.29999999999999999" size="0.001"/>
++        <general ctrlrange="-6.2831000000000001 6.2831000000000001" forcerange="-150 150" gaintype="fixed" biastype="affine" gainprm="2000" biasprm="0 -2000 -400"/>
++        <default class="ur5e/size3">
++          <default class="ur5e/size3_limited">
++            <joint range="-3.1415000000000002 3.1415000000000002"/>
++            <general ctrlrange="-3.1415000000000002 3.1415000000000002"/>
++          </default>
++        </default>
++        <default class="ur5e/size1">
++          <general forcerange="-28 28" gainprm="500" biasprm="0 -500 -100"/>
++        </default>
++        <default class="ur5e/visual">
++          <geom type="mesh" contype="0" conaffinity="0" group="2"/>
++        </default>
++        <default class="ur5e/collision">
++          <geom type="capsule" group="3"/>
++          <default class="ur5e/eef_collision">
++            <geom type="cylinder"/>
++          </default>
++        </default>
++      </default>
++    </default>
++    <default class="ur5e/robotiq_2f85/">
++      <default class="ur5e/robotiq_2f85/2f85">
++        <mesh scale="0.001 0.001 0.001"/>
++        <joint axis="1 0 0"/>
++        <general biastype="affine"/>
++        <default class="ur5e/robotiq_2f85/driver">
++          <joint solreflimit="0.0050000000000000001 1" solimplimit="0.94999999999999996 0.98999999999999999 0.001" range="0 0.80000000000000004" armature="0.0050000000000000001" damping="0.10000000000000001"/>
++        </default>
++        <default class="ur5e/robotiq_2f85/follower">
++          <joint pos="0 -0.017999999999999999 0.0064999999999999997" solreflimit="0.0050000000000000001 1" solimplimit="0.94999999999999996 0.98999999999999999 0.001" range="-0.872664 0.872664" armature="0.001"/>
++        </default>
++        <default class="ur5e/robotiq_2f85/spring_link">
++          <joint stiffness="0.050000000000000003" range="-0.29670597283 0.80000000000000004" springref="2.6200000000000001" armature="0.001" damping="0.00125"/>
++        </default>
++        <default class="ur5e/robotiq_2f85/coupler">
++          <joint solreflimit="0.0050000000000000001 1" solimplimit="0.94999999999999996 0.98999999999999999 0.001" range="-1.5700000000000001 0" armature="0.001"/>
++        </default>
++        <default class="ur5e/robotiq_2f85/visual">
++          <geom type="mesh" contype="0" conaffinity="0" group="2"/>
++        </default>
++        <default class="ur5e/robotiq_2f85/collision">
++          <geom type="mesh" group="3"/>
++          <default class="ur5e/robotiq_2f85/pad_box1">
++            <geom type="box" priority="1" size="0.010999999999999999 0.0040000000000000001 0.0093749999999999997" rgba="0.55000000000000004 0.55000000000000004 0.55000000000000004 1" friction="0.69999999999999996" mass="0" solref="0.0040000000000000001 1" solimp="0.94999999999999996 0.98999999999999999 0.001" pos="0 -0.0025999999999999999 0.028125000000000001"/>
++          </default>
++          <default class="ur5e/robotiq_2f85/pad_box2">
++            <geom type="box" priority="1" size="0.010999999999999999 0.0040000000000000001 0.0093749999999999997" rgba="0.45000000000000001 0.45000000000000001 0.45000000000000001 1" friction="0.59999999999999998" mass="0" solref="0.0040000000000000001 1" solimp="0.94999999999999996 0.98999999999999999 0.001" pos="0 -0.0025999999999999999 0.0093749999999999997"/>
++          </default>
++        </default>
++      </default>
++    </default>
++  </default>
++  <asset>
++    <material name="ur5e/black" class="ur5e/ur5e" rgba="0.033000000000000002 0.033000000000000002 0.033000000000000002 1"/>
++    <material name="ur5e/jointgray" class="ur5e/ur5e" rgba="0.27800000000000002 0.27800000000000002 0.27800000000000002 1"/>
++    <material name="ur5e/linkgray" class="ur5e/ur5e" rgba="0.81999999999999995 0.81999999999999995 0.81999999999999995 1"/>
++    <material name="ur5e/urblue" class="ur5e/ur5e" rgba="0.48999999999999999 0.67800000000000005 0.80000000000000004 1"/>
++    <mesh name="ur5e/base_0" class="ur5e/" file="base_0-d5328a99917358d9aa384f12743fe73698461d1c.obj"/>
++    <mesh name="ur5e/base_1" class="ur5e/" file="base_1-d1c667ae5f87b9c900fdeadad850205153846396.obj"/>
++    <mesh name="ur5e/shoulder_0" class="ur5e/" file="shoulder_0-89051b80580d45ef39cb220bf068742b01770552.obj"/>
++    <mesh name="ur5e/shoulder_1" class="ur5e/" file="shoulder_1-50ba15e82459989cf7f17cba7b1aafbca2781206.obj"/>
++    <mesh name="ur5e/shoulder_2" class="ur5e/" file="shoulder_2-29ad171bec79e2912abb81d250aaf5ff9a67bc60.obj"/>
++    <mesh name="ur5e/upperarm_0" class="ur5e/" file="upperarm_0-16bfdf8d1b19d35ef0adbc4cf29ab0c7edb62dcf.obj"/>
++    <mesh name="ur5e/upperarm_1" class="ur5e/" file="upperarm_1-c53724435bec35e1b608145457af767b038f4fd1.obj"/>
++    <mesh name="ur5e/upperarm_2" class="ur5e/" file="upperarm_2-199e0d0c1baa55a078742ed298800ff26d072c09.obj"/>
++    <mesh name="ur5e/upperarm_3" class="ur5e/" file="upperarm_3-62f2bba935d9ab94800a49bcb6ede7b0fa9dd071.obj"/>
++    <mesh name="ur5e/forearm_0" class="ur5e/" file="forearm_0-7994229075bdd0e4a5c860ca174278ee8eda8229.obj"/>
++    <mesh name="ur5e/forearm_1" class="ur5e/" file="forearm_1-c72848167eef89e0d9801ddd7da516e7e878776e.obj"/>
++    <mesh name="ur5e/forearm_2" class="ur5e/" file="forearm_2-3a33518f421ed893ff9b0d759af07b0e5900e78c.obj"/>
++    <mesh name="ur5e/forearm_3" class="ur5e/" file="forearm_3-54cad2556a94cdda04a7cef5c84554a7d9f3ab03.obj"/>
++    <mesh name="ur5e/wrist1_0" class="ur5e/" file="wrist1_0-6876ccb9d0084054268dd6aec007e5a61aea6c2d.obj"/>
++    <mesh name="ur5e/wrist1_1" class="ur5e/" file="wrist1_1-0f7e6640a9dfb98e58078997f5f82bd433879387.obj"/>
++    <mesh name="ur5e/wrist1_2" class="ur5e/" file="wrist1_2-3f6dcae8c736e2c42db3746db7f24ac4516aaca7.obj"/>
++    <mesh name="ur5e/wrist2_0" class="ur5e/" file="wrist2_0-fdb3f7bc360f8f37f6be6270c8b507291dc9b01c.obj"/>
++    <mesh name="ur5e/wrist2_1" class="ur5e/" file="wrist2_1-258ca475798c530d954723dc29f3d67086ead0d9.obj"/>
++    <mesh name="ur5e/wrist2_2" class="ur5e/" file="wrist2_2-c6734971531db7f2f09e746377aa9faccb69b192.obj"/>
++    <mesh name="ur5e/wrist3" class="ur5e/" file="wrist3-a1fffb4f599e121fb18be40e087b6fd7fb164e59.obj"/>
++    <material name="ur5e/robotiq_2f85/metal" class="ur5e/robotiq_2f85/" rgba="0.57999999999999996 0.57999999999999996 0.57999999999999996 1"/>
++    <material name="ur5e/robotiq_2f85/silicone" class="ur5e/robotiq_2f85/" rgba="0.18820000000000001 0.18820000000000001 0.18820000000000001 1"/>
++    <material name="ur5e/robotiq_2f85/gray" class="ur5e/robotiq_2f85/" rgba="0.4627 0.4627 0.4627 1"/>
++    <material name="ur5e/robotiq_2f85/black" class="ur5e/robotiq_2f85/" rgba="0.14899999999999999 0.14899999999999999 0.14899999999999999 1"/>
++    <mesh name="ur5e/robotiq_2f85/base_mount" class="ur5e/robotiq_2f85/2f85" file="base_mount-22e57178defe77afb6bdd333bfae16607f1eb3dd.stl"/>
++    <mesh name="ur5e/robotiq_2f85/base" class="ur5e/robotiq_2f85/2f85" file="base-e5dacbcc3971bfdb549ff8c7d38ea873ca7f2933.stl"/>
++    <mesh name="ur5e/robotiq_2f85/driver" class="ur5e/robotiq_2f85/2f85" file="driver-97efa43184c575b31ff1f3980641896f51492762.stl"/>
++    <mesh name="ur5e/robotiq_2f85/coupler" class="ur5e/robotiq_2f85/2f85" file="coupler-0a4240dc94992944cca6ec9e270ff1658fa86c55.stl"/>
++    <mesh name="ur5e/robotiq_2f85/follower" class="ur5e/robotiq_2f85/2f85" file="follower-39e4b8048f1395ee38cb45b37b5fec0e6f2aaec9.stl"/>
++    <mesh name="ur5e/robotiq_2f85/pad" class="ur5e/robotiq_2f85/2f85" file="pad-e6a633b2c81740b1f783ec4c6e695c8cc570f09d.stl"/>
++    <mesh name="ur5e/robotiq_2f85/silicone_pad" class="ur5e/robotiq_2f85/2f85" file="silicone_pad-c284384f3ca6dcdc24d6188a5d1a2d4c42c412ac.stl"/>
++    <mesh name="ur5e/robotiq_2f85/spring_link" class="ur5e/robotiq_2f85/2f85" file="spring_link-8f50234325193b84e9f86b7a63a24560a389c9bf.stl"/>
++  </asset>
++  <worldbody>
++    <body name="ur5e/">
++      <light name="ur5e/spotlight" class="ur5e/" mode="targetbodycom" target="ur5e/wrist_2_link" pos="0 -1 2"/>
++      <body name="ur5e/base" childclass="ur5e/ur5e" quat="0 0 0 -1">
++        <inertial pos="0 0 0" mass="4" diaginertia="0.0044333315599999999 0.0044333315599999999 0.0071999999999999998"/>
++        <geom name="ur5e//unnamed_geom_0" class="ur5e/visual" material="ur5e/black" mesh="ur5e/base_0"/>
++        <geom name="ur5e//unnamed_geom_1" class="ur5e/visual" material="ur5e/jointgray" mesh="ur5e/base_1"/>
++        <body name="ur5e/shoulder_link" pos="0 0 0.16300000000000001">
++          <inertial pos="0 0 0" mass="3.7000000000000002" diaginertia="0.010267500000000001 0.010267500000000001 0.0066600000000000001"/>
++          <joint name="ur5e/shoulder_pan_joint" class="ur5e/size3" axis="0 0 1"/>
++          <geom name="ur5e//unnamed_geom_2" class="ur5e/visual" material="ur5e/urblue" mesh="ur5e/shoulder_0"/>
++          <geom name="ur5e//unnamed_geom_3" class="ur5e/visual" material="ur5e/black" mesh="ur5e/shoulder_1"/>
++          <geom name="ur5e//unnamed_geom_4" class="ur5e/visual" material="ur5e/jointgray" mesh="ur5e/shoulder_2"/>
++          <geom name="ur5e//unnamed_geom_5" class="ur5e/collision" size="0.059999999999999998 0.059999999999999998" pos="0 0 -0.040000000000000001"/>
++          <body name="ur5e/upper_arm_link" pos="0 0.13800000000000001 0" quat="1 0 1 0">
++            <inertial pos="0 0 0.21249999999999999" mass="8.3930000000000007" diaginertia="0.13388600000000001 0.13388600000000001 0.0151074"/>
++            <joint name="ur5e/shoulder_lift_joint" class="ur5e/size3"/>
++            <geom name="ur5e//unnamed_geom_6" class="ur5e/visual" material="ur5e/linkgray" mesh="ur5e/upperarm_0"/>
++            <geom name="ur5e//unnamed_geom_7" class="ur5e/visual" material="ur5e/black" mesh="ur5e/upperarm_1"/>
++            <geom name="ur5e//unnamed_geom_8" class="ur5e/visual" material="ur5e/jointgray" mesh="ur5e/upperarm_2"/>
++            <geom name="ur5e//unnamed_geom_9" class="ur5e/visual" material="ur5e/urblue" mesh="ur5e/upperarm_3"/>
++            <geom name="ur5e//unnamed_geom_10" class="ur5e/collision" size="0.059999999999999998 0.059999999999999998" pos="0 -0.040000000000000001 0" quat="1 1 0 0"/>
++            <geom name="ur5e//unnamed_geom_11" class="ur5e/collision" size="0.050000000000000003 0.20000000000000001" pos="0 0 0.20000000000000001"/>
++            <body name="ur5e/forearm_link" pos="0 -0.13100000000000001 0.42499999999999999">
++              <inertial pos="0 0 0.19600000000000001" mass="2.2749999999999999" diaginertia="0.031179599999999998 0.031179599999999998 0.0040949999999999997"/>
++              <joint name="ur5e/elbow_joint" class="ur5e/size3_limited"/>
++              <geom name="ur5e//unnamed_geom_12" class="ur5e/visual" material="ur5e/urblue" mesh="ur5e/forearm_0"/>
++              <geom name="ur5e//unnamed_geom_13" class="ur5e/visual" material="ur5e/linkgray" mesh="ur5e/forearm_1"/>
++              <geom name="ur5e//unnamed_geom_14" class="ur5e/visual" material="ur5e/black" mesh="ur5e/forearm_2"/>
++              <geom name="ur5e//unnamed_geom_15" class="ur5e/visual" material="ur5e/jointgray" mesh="ur5e/forearm_3"/>
++              <geom name="ur5e//unnamed_geom_16" class="ur5e/collision" size="0.055 0.059999999999999998" pos="0 0.080000000000000002 0" quat="1 1 0 0"/>
++              <geom name="ur5e//unnamed_geom_17" class="ur5e/collision" size="0.037999999999999999 0.19" pos="0 0 0.20000000000000001"/>
++              <body name="ur5e/wrist_1_link" pos="0 0 0.39200000000000002" quat="1 0 1 0">
++                <inertial pos="0 0.127 0" mass="1.2190000000000001" diaginertia="0.0025598999999999999 0.0025598999999999999 0.0021941999999999999"/>
++                <joint name="ur5e/wrist_1_joint" class="ur5e/size1"/>
++                <geom name="ur5e//unnamed_geom_18" class="ur5e/visual" material="ur5e/black" mesh="ur5e/wrist1_0"/>
++                <geom name="ur5e//unnamed_geom_19" class="ur5e/visual" material="ur5e/urblue" mesh="ur5e/wrist1_1"/>
++                <geom name="ur5e//unnamed_geom_20" class="ur5e/visual" material="ur5e/jointgray" mesh="ur5e/wrist1_2"/>
++                <geom name="ur5e//unnamed_geom_21" class="ur5e/collision" size="0.040000000000000001 0.070000000000000007" pos="0 0.050000000000000003 0" quat="1 1 0 0"/>
++                <body name="ur5e/wrist_2_link" pos="0 0.127 0">
++                  <inertial pos="0 0 0.10000000000000001" mass="1.2190000000000001" diaginertia="0.0025598999999999999 0.0025598999999999999 0.0021941999999999999"/>
++                  <joint name="ur5e/wrist_2_joint" class="ur5e/size1" axis="0 0 1"/>
++                  <geom name="ur5e//unnamed_geom_22" class="ur5e/visual" material="ur5e/black" mesh="ur5e/wrist2_0"/>
++                  <geom name="ur5e//unnamed_geom_23" class="ur5e/visual" material="ur5e/urblue" mesh="ur5e/wrist2_1"/>
++                  <geom name="ur5e//unnamed_geom_24" class="ur5e/visual" material="ur5e/jointgray" mesh="ur5e/wrist2_2"/>
++                  <geom name="ur5e//unnamed_geom_25" class="ur5e/collision" size="0.040000000000000001 0.059999999999999998" pos="0 0 0.040000000000000001"/>
++                  <geom name="ur5e//unnamed_geom_26" class="ur5e/collision" size="0.040000000000000001 0.040000000000000001" pos="0 0.02 0.10000000000000001" quat="1 1 0 0"/>
++                  <body name="ur5e/wrist_3_link" pos="0 0 0.10000000000000001">
++                    <inertial pos="0 0.077168299999999995 0" quat="1 0 0 1" mass="0.18890000000000001" diaginertia="0.00013213400000000001 9.90863e-05 9.90863e-05"/>
++                    <joint name="ur5e/wrist_3_joint" class="ur5e/size1"/>
++                    <geom name="ur5e//unnamed_geom_27" class="ur5e/visual" material="ur5e/linkgray" mesh="ur5e/wrist3"/>
++                    <geom name="ur5e//unnamed_geom_28" class="ur5e/eef_collision" size="0.040000000000000001 0.02" pos="0 0.080000000000000002 0" quat="1 1 0 0"/>
++                    <site name="ur5e/attachment_site" pos="0 0.10000000000000001 0" quat="-1 1 0 0"/>
++                    <body pos="0 0.10000000000000001 0" quat="-1 1 0 0" name="ur5e/robotiq_2f85/">
++                      <body name="ur5e/robotiq_2f85/base_mount" childclass="ur5e/robotiq_2f85/2f85" pos="0 0 0.0070000000000000001">
++                        <geom name="ur5e/robotiq_2f85//unnamed_geom_0" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/black" mesh="ur5e/robotiq_2f85/base_mount"/>
++                        <geom name="ur5e/robotiq_2f85//unnamed_geom_1" class="ur5e/robotiq_2f85/collision" mesh="ur5e/robotiq_2f85/base_mount"/>
++                        <body name="ur5e/robotiq_2f85/base" pos="0 0 0.0038" quat="1 0 0 -1">
++                          <inertial pos="0 -2.7039400000000001e-05 0.035467499999999999" quat="1 -0.00152849 0 0" mass="0.77744100000000005" diaginertia="0.00026028500000000002 0.000225381 0.00015270799999999999"/>
++                          <geom name="ur5e/robotiq_2f85//unnamed_geom_2" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/black" mesh="ur5e/robotiq_2f85/base"/>
++                          <geom name="ur5e/robotiq_2f85//unnamed_geom_3" class="ur5e/robotiq_2f85/collision" mesh="ur5e/robotiq_2f85/base"/>
++                          <site name="ur5e/robotiq_2f85/pinch" type="sphere" group="5" rgba="0.90000000000000002 0.90000000000000002 0.90000000000000002 1" size="0.0050000000000000001" pos="0 0 0.14499999999999999"/>
++                          <body name="ur5e/robotiq_2f85/right_driver" pos="0 0.030601099999999999 0.054904000000000001">
++                            <inertial pos="2.96931e-12 0.017754700000000002 0.00107314" quat="0.68130100000000005 0.73200299999999996 0 0" mass="0.0089956299999999993" diaginertia="1.72352e-06 1.6090599999999999e-06 3.22006e-07"/>
++                            <joint name="ur5e/robotiq_2f85/right_driver_joint" class="ur5e/robotiq_2f85/driver"/>
++                            <geom name="ur5e/robotiq_2f85//unnamed_geom_4" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/gray" mesh="ur5e/robotiq_2f85/driver"/>
++                            <geom name="ur5e/robotiq_2f85//unnamed_geom_5" class="ur5e/robotiq_2f85/collision" mesh="ur5e/robotiq_2f85/driver"/>
++                            <body name="ur5e/robotiq_2f85/right_coupler" pos="0 0.0315 -0.0041000000000000003">
++                              <inertial pos="0 0.0030120899999999998 0.023217499999999999" quat="0.70563600000000004 -0.045590400000000003 0.045590400000000003 0.70563600000000004" mass="0.0140974" diaginertia="4.1620600000000001e-06 3.5221600000000001e-06 8.8813100000000003e-07"/>
++                              <joint name="ur5e/robotiq_2f85/right_coupler_joint" class="ur5e/robotiq_2f85/coupler"/>
++                              <geom name="ur5e/robotiq_2f85//unnamed_geom_6" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/black" mesh="ur5e/robotiq_2f85/coupler"/>
++                              <geom name="ur5e/robotiq_2f85//unnamed_geom_7" class="ur5e/robotiq_2f85/collision" mesh="ur5e/robotiq_2f85/coupler"/>
++                            </body>
++                          </body>
++                          <body name="ur5e/robotiq_2f85/right_spring_link" pos="0 0.0132 0.060900000000000003">
++                            <inertial pos="-8.6500500000000008e-09 0.018162399999999999 0.021265800000000001" quat="0.66340299999999996 -0.24473700000000001 0.24473700000000001 0.66340299999999996" mass="0.022164199999999998" diaginertia="8.9685299999999993e-06 6.7173299999999996e-06 2.6393100000000001e-06"/>
++                            <joint name="ur5e/robotiq_2f85/right_spring_link_joint" class="ur5e/robotiq_2f85/spring_link"/>
++                            <geom name="ur5e/robotiq_2f85//unnamed_geom_8" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/black" mesh="ur5e/robotiq_2f85/spring_link"/>
++                            <geom name="ur5e/robotiq_2f85//unnamed_geom_9" class="ur5e/robotiq_2f85/collision" mesh="ur5e/robotiq_2f85/spring_link"/>
++                            <body name="ur5e/robotiq_2f85/right_follower" pos="0 0.055 0.037499999999999999">
++                              <inertial pos="0 -0.011046 0.012478599999999999" quat="1 0.16639999999999999 0 0" mass="0.012522200000000001" diaginertia="2.6741500000000001e-06 2.4559000000000001e-06 6.0203100000000003e-07"/>
++                              <joint name="ur5e/robotiq_2f85/right_follower_joint" class="ur5e/robotiq_2f85/follower"/>
++                              <geom name="ur5e/robotiq_2f85//unnamed_geom_10" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/black" mesh="ur5e/robotiq_2f85/follower"/>
++                              <geom name="ur5e/robotiq_2f85//unnamed_geom_11" class="ur5e/robotiq_2f85/collision" mesh="ur5e/robotiq_2f85/follower"/>
++                              <body name="ur5e/robotiq_2f85/right_pad" pos="0 -0.0189 0.013520000000000001">
++                                <geom name="ur5e/robotiq_2f85/right_pad1" class="ur5e/robotiq_2f85/pad_box1"/>
++                                <geom name="ur5e/robotiq_2f85/right_pad2" class="ur5e/robotiq_2f85/pad_box2"/>
++                                <inertial pos="0 -0.0025000000000000001 0.018499999999999999" quat="0.70710700000000004 0 0 0.70710700000000004" mass="0.0035000000000000001" diaginertia="4.7395799999999999e-07 3.6458299999999998e-07 1.23958e-07"/>
++                                <geom name="ur5e/robotiq_2f85//unnamed_geom_14" class="ur5e/robotiq_2f85/visual" mesh="ur5e/robotiq_2f85/pad"/>
++                                <body name="ur5e/robotiq_2f85/right_silicone_pad">
++                                  <geom name="ur5e/robotiq_2f85//unnamed_geom_15" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/black" mesh="ur5e/robotiq_2f85/silicone_pad"/>
++                                </body>
++                              </body>
++                            </body>
++                          </body>
++                          <body name="ur5e/robotiq_2f85/left_driver" pos="0 -0.030601099999999999 0.054904000000000001" quat="0 0 0 1">
++                            <inertial pos="0 0.017754700000000002 0.00107314" quat="0.68130100000000005 0.73200299999999996 0 0" mass="0.0089956299999999993" diaginertia="1.72352e-06 1.6090599999999999e-06 3.22006e-07"/>
++                            <joint name="ur5e/robotiq_2f85/left_driver_joint" class="ur5e/robotiq_2f85/driver"/>
++                            <geom name="ur5e/robotiq_2f85//unnamed_geom_16" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/gray" mesh="ur5e/robotiq_2f85/driver"/>
++                            <geom name="ur5e/robotiq_2f85//unnamed_geom_17" class="ur5e/robotiq_2f85/collision" mesh="ur5e/robotiq_2f85/driver"/>
++                            <body name="ur5e/robotiq_2f85/left_coupler" pos="0 0.0315 -0.0041000000000000003">
++                              <inertial pos="0 0.0030120899999999998 0.023217499999999999" quat="0.70563600000000004 -0.045590400000000003 0.045590400000000003 0.70563600000000004" mass="0.0140974" diaginertia="4.1620600000000001e-06 3.5221600000000001e-06 8.8813100000000003e-07"/>
++                              <joint name="ur5e/robotiq_2f85/left_coupler_joint" class="ur5e/robotiq_2f85/coupler"/>
++                              <geom name="ur5e/robotiq_2f85//unnamed_geom_18" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/black" mesh="ur5e/robotiq_2f85/coupler"/>
++                              <geom name="ur5e/robotiq_2f85//unnamed_geom_19" class="ur5e/robotiq_2f85/collision" mesh="ur5e/robotiq_2f85/coupler"/>
++                            </body>
++                          </body>
++                          <body name="ur5e/robotiq_2f85/left_spring_link" pos="0 -0.0132 0.060900000000000003" quat="0 0 0 1">
++                            <inertial pos="-8.6500500000000008e-09 0.018162399999999999 0.021265800000000001" quat="0.66340299999999996 -0.24473700000000001 0.24473700000000001 0.66340299999999996" mass="0.022164199999999998" diaginertia="8.9685299999999993e-06 6.7173299999999996e-06 2.6393100000000001e-06"/>
++                            <joint name="ur5e/robotiq_2f85/left_spring_link_joint" class="ur5e/robotiq_2f85/spring_link"/>
++                            <geom name="ur5e/robotiq_2f85//unnamed_geom_20" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/black" mesh="ur5e/robotiq_2f85/spring_link"/>
++                            <geom name="ur5e/robotiq_2f85//unnamed_geom_21" class="ur5e/robotiq_2f85/collision" mesh="ur5e/robotiq_2f85/spring_link"/>
++                            <body name="ur5e/robotiq_2f85/left_follower" pos="0 0.055 0.037499999999999999">
++                              <inertial pos="0 -0.011046 0.012478599999999999" quat="1 0.16639999999999999 0 0" mass="0.012522200000000001" diaginertia="2.6741500000000001e-06 2.4559000000000001e-06 6.0203100000000003e-07"/>
++                              <joint name="ur5e/robotiq_2f85/left_follower_joint" class="ur5e/robotiq_2f85/follower"/>
++                              <geom name="ur5e/robotiq_2f85//unnamed_geom_22" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/black" mesh="ur5e/robotiq_2f85/follower"/>
++                              <geom name="ur5e/robotiq_2f85//unnamed_geom_23" class="ur5e/robotiq_2f85/collision" mesh="ur5e/robotiq_2f85/follower"/>
++                              <body name="ur5e/robotiq_2f85/left_pad" pos="0 -0.0189 0.013520000000000001">
++                                <geom name="ur5e/robotiq_2f85/left_pad1" class="ur5e/robotiq_2f85/pad_box1"/>
++                                <geom name="ur5e/robotiq_2f85/left_pad2" class="ur5e/robotiq_2f85/pad_box2"/>
++                                <inertial pos="0 -0.0025000000000000001 0.018499999999999999" quat="1 0 0 1" mass="0.0035000000000000001" diaginertia="4.7395799999999999e-07 3.6458299999999998e-07 1.23958e-07"/>
++                                <geom name="ur5e/robotiq_2f85//unnamed_geom_26" class="ur5e/robotiq_2f85/visual" mesh="ur5e/robotiq_2f85/pad"/>
++                                <body name="ur5e/robotiq_2f85/left_silicone_pad">
++                                  <geom name="ur5e/robotiq_2f85//unnamed_geom_27" class="ur5e/robotiq_2f85/visual" material="ur5e/robotiq_2f85/black" mesh="ur5e/robotiq_2f85/silicone_pad"/>
++                                </body>
++                              </body>
++                            </body>
++                          </body>
++                        </body>
++                      </body>
++                    </body>
++                  </body>
++                </body>
++              </body>
++            </body>
++          </body>
++        </body>
++      </body>
++    </body>
++  </worldbody>
++  <contact>
++    <exclude name="ur5e/robotiq_2f85//unnamed_contact_0" body1="ur5e/robotiq_2f85/base" body2="ur5e/robotiq_2f85/left_driver"/>
++    <exclude name="ur5e/robotiq_2f85//unnamed_contact_1" body1="ur5e/robotiq_2f85/base" body2="ur5e/robotiq_2f85/right_driver"/>
++    <exclude name="ur5e/robotiq_2f85//unnamed_contact_2" body1="ur5e/robotiq_2f85/base" body2="ur5e/robotiq_2f85/left_spring_link"/>
++    <exclude name="ur5e/robotiq_2f85//unnamed_contact_3" body1="ur5e/robotiq_2f85/base" body2="ur5e/robotiq_2f85/right_spring_link"/>
++    <exclude name="ur5e/robotiq_2f85//unnamed_contact_4" body1="ur5e/robotiq_2f85/right_coupler" body2="ur5e/robotiq_2f85/right_follower"/>
++    <exclude name="ur5e/robotiq_2f85//unnamed_contact_5" body1="ur5e/robotiq_2f85/left_coupler" body2="ur5e/robotiq_2f85/left_follower"/>
++  </contact>
++  <equality>
++    <connect name="ur5e/robotiq_2f85//unnamed_equality_0" class="ur5e/robotiq_2f85/" solref="0.0050000000000000001 1" solimp="0.94999999999999996 0.98999999999999999 0.001" body1="ur5e/robotiq_2f85/right_follower" body2="ur5e/robotiq_2f85/right_coupler" anchor="0 0 0"/>
++    <connect name="ur5e/robotiq_2f85//unnamed_equality_1" class="ur5e/robotiq_2f85/" solref="0.0050000000000000001 1" solimp="0.94999999999999996 0.98999999999999999 0.001" body1="ur5e/robotiq_2f85/left_follower" body2="ur5e/robotiq_2f85/left_coupler" anchor="0 0 0"/>
++    <joint name="ur5e/robotiq_2f85//unnamed_equality_2" class="ur5e/robotiq_2f85/" solref="0.0050000000000000001 1" solimp="0.94999999999999996 0.98999999999999999 0.001" joint1="ur5e/robotiq_2f85/right_driver_joint" joint2="ur5e/robotiq_2f85/left_driver_joint" polycoef="0 1 0 0 0"/>
++  </equality>
++  <tendon>
++    <fixed name="ur5e/robotiq_2f85/split" class="ur5e/robotiq_2f85/">
++      <joint joint="ur5e/robotiq_2f85/right_driver_joint" coef="0.5"/>
++      <joint joint="ur5e/robotiq_2f85/left_driver_joint" coef="0.5"/>
++    </fixed>
++  </tendon>
++  <actuator>
++    <general name="ur5e/shoulder_pan" class="ur5e/size3" joint="ur5e/shoulder_pan_joint"/>
++    <general name="ur5e/shoulder_lift" class="ur5e/size3" joint="ur5e/shoulder_lift_joint"/>
++    <general name="ur5e/elbow" class="ur5e/size3_limited" joint="ur5e/elbow_joint"/>
++    <general name="ur5e/wrist_1" class="ur5e/size1" joint="ur5e/wrist_1_joint"/>
++    <general name="ur5e/wrist_2" class="ur5e/size1" joint="ur5e/wrist_2_joint"/>
++    <general name="ur5e/wrist_3" class="ur5e/size1" joint="ur5e/wrist_3_joint"/>
++    <general name="ur5e/robotiq_2f85/fingers_actuator" class="ur5e/robotiq_2f85/2f85" ctrlrange="0 255" forcerange="-5 5" tendon="ur5e/robotiq_2f85/split" gainprm="0.31372549999999999 0 0" biasprm="0 -100 -10"/>
++  </actuator>
++  <keyframe>
++    <key name="ur5e/home" qpos="-1.5708 -1.5708 1.5708 -1.5708 -1.5708 0 0 0 0 0 0 0 0 0" ctrl="-1.5708 -1.5708 1.5708 -1.5708 -1.5708 0 0"/>
++  </keyframe>
++</mujoco>
+diff --git a/experiments/run_env.py b/experiments/run_env.py
+index 4af9658..dd982fe 100644
+--- a/experiments/run_env.py
++++ b/experiments/run_env.py
+@@ -6,12 +6,29 @@ from typing import Optional, Tuple
+ import numpy as np
+ import tyro
+ 
++from gello import env
++from gello.agents import agent
+ from gello.env import RobotEnv
+ from gello.robots.robot import PrintRobot
+ from gello.utils.launch_utils import instantiate_from_dict
+ from gello.zmq_core.robot_node import ZMQClientRobot
+ 
+ 
++
++def _match_dofs(vec, dof: int):
++    """Return vec as np.ndarray of length == dof. If vec is longer by 1 (gripper), drop the last."""
++    if vec is None:
++        return None
++    v = np.asarray(vec, dtype=float).reshape(-1)
++    if v.size == dof + 1:
++        v = v[:dof]          # drop gripper
++    elif v.size > dof:
++        v = v[:dof]          # be safe
++    elif v.size < dof:
++        v = np.pad(v, (0, dof - v.size))
++    return v
++
++
+ def print_color(*args, color=None, attrs=(), **kwargs):
+     import termcolor
+ 
+@@ -111,8 +128,8 @@ def main(args):
+ 
+         # System setup specific. This reset configuration works well on our setup. If you are mounting the robot
+         # differently, you need a separate reset joint configuration.
+-        reset_joints_left = np.deg2rad([0, -90, -90, -90, 90, 0, 0])
+-        reset_joints_right = np.deg2rad([0, -90, 90, -90, -90, 0, 0])
++        reset_joints_left = np.deg2rad([0, -90, -90, -90, 90, 0])
++        reset_joints_right = np.deg2rad([0, -90, 90, -90, -90, 0])
+         reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
+         curr_joints = env.get_obs()["joint_positions"]
+         max_delta = (np.abs(curr_joints - reset_joints)).max()
+@@ -140,12 +157,16 @@ def main(args):
+             }
+             if args.start_joints is None:
+                 reset_joints = np.deg2rad(
+-                    [0, -90, 90, -90, -90, 0, 0]
+-                )  # Change this to your own reset joints
++                    [90, -90, 90, -90, -90, 0]
++                )  # Change this to your own reset joints for the starting position
+             else:
+                 reset_joints = np.array(args.start_joints)
+ 
+-            curr_joints = env.get_obs()["joint_positions"]
++            # curr_joints = env.get_obs()["joint_positions"]
++            # curr_joints = np.array(curr_joints)
++
++            curr_joints = np.asarray(env.get_obs()["joint_positions"], dtype=float).reshape(-1)
++            reset_joints = _match_dofs(reset_joints, curr_joints.size)
+             if reset_joints.shape == curr_joints.shape:
+                 max_delta = (np.abs(curr_joints - reset_joints)).max()
+                 steps = min(int(max_delta / 0.01), 100)
+@@ -180,7 +201,18 @@ def main(args):
+     print("Going to start position")
+     start_pos = agent.act(env.get_obs())
+     obs = env.get_obs()
+-    joints = obs["joint_positions"]
++    #joints = obs["joint_positions"]
++    joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)  # (6,)
++    start_pos = _match_dofs(start_pos, joints.size)
++
++    # # Ensure numpy arrays
++    # joints = np.asarray(joints, dtype=float).reshape(-1)         # (6,)
++    # start_pos = np.asarray(start_pos, dtype=float).reshape(-1)    # (7,) currently
++
++    # # Drop gripper if present
++    # if start_pos.size == joints.size + 1:
++    #     start_pos = start_pos[:joints.size]
++
+ 
+     abs_deltas = np.abs(start_pos - joints)
+     id_max_joint_delta = np.argmax(abs_deltas)
+@@ -209,8 +241,13 @@ def main(args):
+     max_delta = 0.05
+     for _ in range(25):
+         obs = env.get_obs()
+-        command_joints = agent.act(obs)
+-        current_joints = obs["joint_positions"]
++        # command_joints = agent.act(obs)
++        # current_joints = obs["joint_positions"]
++
++        current_joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
++        command_joints = _match_dofs(agent.act(obs), current_joints.size)
++
++
+         delta = command_joints - current_joints
+         max_joint_delta = np.abs(delta).max()
+         if max_joint_delta > max_delta:
+@@ -218,8 +255,11 @@ def main(args):
+         env.step(current_joints + delta)
+ 
+     obs = env.get_obs()
+-    joints = obs["joint_positions"]
+-    action = agent.act(obs)
++    # joints = obs["joint_positions"]
++    # action = agent.act(obs)
++
++    joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
++    action = _match_dofs(agent.act(obs), joints.size)
+     if (action - joints > 0.5).any():
+         print("Action is too big")
+ 
+diff --git a/experiments/run_env_sim.py b/experiments/run_env_sim.py
+new file mode 100644
+index 0000000..2d3419a
+--- /dev/null
++++ b/experiments/run_env_sim.py
+@@ -0,0 +1,246 @@
++import glob
++import time
++from dataclasses import dataclass
++from typing import Optional, Tuple
++
++import numpy as np
++import tyro
++
++from gello.env import RobotEnv
++from gello.robots.robot import PrintRobot
++from gello.utils.launch_utils import instantiate_from_dict
++from gello.zmq_core.robot_node import ZMQClientRobot
++
++
++def print_color(*args, color=None, attrs=(), **kwargs):
++    import termcolor
++
++    if len(args) > 0:
++        args = tuple(termcolor.colored(arg, color=color, attrs=attrs) for arg in args)
++    print(*args, **kwargs)
++
++
++@dataclass
++class Args:
++    agent: str = "none"
++    robot_port: int = 6001
++    wrist_camera_port: int = 5000
++    base_camera_port: int = 5001
++    hostname: str = "127.0.0.1"
++    robot_type: str = None  # only needed for quest agent or spacemouse agent
++    hz: int = 100
++    start_joints: Optional[Tuple[float, ...]] = None
++
++    gello_port: Optional[str] = None
++    mock: bool = False
++    use_save_interface: bool = False
++    data_dir: str = "~/bc_data"
++    bimanual: bool = False
++    verbose: bool = False
++
++    def __post_init__(self):
++        if self.start_joints is not None:
++            self.start_joints = np.array(self.start_joints)
++
++
++def main(args):
++    if args.mock:
++        robot_client = PrintRobot(8, dont_print=True)
++        camera_clients = {}
++    else:
++        camera_clients = {
++            # you can optionally add camera nodes here for imitation learning purposes
++            # "wrist": ZMQClientCamera(port=args.wrist_camera_port, host=args.hostname),
++            # "base": ZMQClientCamera(port=args.base_camera_port, host=args.hostname),
++        }
++        robot_client = ZMQClientRobot(port=args.robot_port, host=args.hostname)
++    env = RobotEnv(robot_client, control_rate_hz=args.hz, camera_dict=camera_clients)
++
++    agent_cfg = {}
++    if args.bimanual:
++        if args.agent == "gello":
++            # dynamixel control box port map (to distinguish left and right gello)
++            right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBG6A-if00-port0"
++            left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBEIA-if00-port0"
++            agent_cfg = {
++                "_target_": "gello.agents.agent.BimanualAgent",
++                "agent_left": {
++                    "_target_": "gello.agents.gello_agent.GelloAgent",
++                    "port": left,
++                },
++                "agent_right": {
++                    "_target_": "gello.agents.gello_agent.GelloAgent",
++                    "port": right,
++                },
++            }
++        elif args.agent == "quest":
++            agent_cfg = {
++                "_target_": "gello.agents.agent.BimanualAgent",
++                "agent_left": {
++                    "_target_": "gello.agents.quest_agent.SingleArmQuestAgent",
++                    "robot_type": args.robot_type,
++                    "which_hand": "l",
++                },
++                "agent_right": {
++                    "_target_": "gello.agents.quest_agent.SingleArmQuestAgent",
++                    "robot_type": args.robot_type,
++                    "which_hand": "r",
++                },
++            }
++        elif args.agent == "spacemouse":
++            left_path = "/dev/hidraw0"
++            right_path = "/dev/hidraw1"
++            agent_cfg = {
++                "_target_": "gello.agents.agent.BimanualAgent",
++                "agent_left": {
++                    "_target_": "gello.agents.spacemouse_agent.SpacemouseAgent",
++                    "robot_type": args.robot_type,
++                    "device_path": left_path,
++                    "verbose": args.verbose,
++                },
++                "agent_right": {
++                    "_target_": "gello.agents.spacemouse_agent.SpacemouseAgent",
++                    "robot_type": args.robot_type,
++                    "device_path": right_path,
++                    "verbose": args.verbose,
++                    "invert_button": True,
++                },
++            }
++        else:
++            raise ValueError(f"Invalid agent name for bimanual: {args.agent}")
++
++        # System setup specific. This reset configuration works well on our setup. If you are mounting the robot
++        # differently, you need a separate reset joint configuration.
++        reset_joints_left = np.deg2rad([0, -90, -90, -90, 90, 0, 0])
++        reset_joints_right = np.deg2rad([0, -90, 90, -90, -90, 0, 0])
++        reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
++        curr_joints = env.get_obs()["joint_positions"]
++        max_delta = (np.abs(curr_joints - reset_joints)).max()
++        steps = min(int(max_delta / 0.01), 100)
++
++        for jnt in np.linspace(curr_joints, reset_joints, steps):
++            env.step(jnt)
++    else:
++        if args.agent == "gello":
++            gello_port = args.gello_port
++            if gello_port is None:
++                usb_ports = glob.glob("/dev/serial/by-id/*")
++                print(f"Found {len(usb_ports)} ports")
++                if len(usb_ports) > 0:
++                    gello_port = usb_ports[0]
++                    print(f"using port {gello_port}")
++                else:
++                    raise ValueError(
++                        "No gello port found, please specify one or plug in gello"
++                    )
++            agent_cfg = {
++                "_target_": "gello.agents.gello_agent.GelloAgent",
++                "port": gello_port,
++                "start_joints": args.start_joints,
++            }
++            if args.start_joints is None:
++                reset_joints = np.deg2rad(
++                    [0, -90, 90, -90, -90, 0, 0]
++                )  # Change this to your own reset joints
++            else:
++                reset_joints = np.array(args.start_joints)
++
++            curr_joints = env.get_obs()["joint_positions"]
++            if reset_joints.shape == curr_joints.shape:
++                max_delta = (np.abs(curr_joints - reset_joints)).max()
++                steps = min(int(max_delta / 0.01), 100)
++
++                for jnt in np.linspace(curr_joints, reset_joints, steps):
++                    env.step(jnt)
++                    time.sleep(0.001)
++        elif args.agent == "quest":
++            agent_cfg = {
++                "_target_": "gello.agents.quest_agent.SingleArmQuestAgent",
++                "robot_type": args.robot_type,
++                "which_hand": "l",
++            }
++        elif args.agent == "spacemouse":
++            agent_cfg = {
++                "_target_": "gello.agents.spacemouse_agent.SpacemouseAgent",
++                "robot_type": args.robot_type,
++                "verbose": args.verbose,
++            }
++        elif args.agent == "dummy" or args.agent == "none":
++            agent_cfg = {
++                "_target_": "gello.agents.agent.DummyAgent",
++                "num_dofs": robot_client.num_dofs(),
++            }
++        elif args.agent == "policy":
++            raise NotImplementedError("add your imitation policy here if there is one")
++        else:
++            raise ValueError("Invalid agent name")
++
++    agent = instantiate_from_dict(agent_cfg)
++    # going to start position
++    print("Going to start position")
++    start_pos = agent.act(env.get_obs())
++    obs = env.get_obs()
++    joints = obs["joint_positions"]
++
++    abs_deltas = np.abs(start_pos - joints)
++    id_max_joint_delta = np.argmax(abs_deltas)
++
++    max_joint_delta = 0.8
++    if abs_deltas[id_max_joint_delta] > max_joint_delta:
++        id_mask = abs_deltas > max_joint_delta
++        print()
++        ids = np.arange(len(id_mask))[id_mask]
++        for i, delta, joint, current_j in zip(
++            ids,
++            abs_deltas[id_mask],
++            start_pos[id_mask],
++            joints[id_mask],
++        ):
++            print(
++                f"joint[{i}]: \t delta: {delta:4.3f} , leader: \t{joint:4.3f} , follower: \t{current_j:4.3f}"
++            )
++        return
++
++    print(f"Start pos: {len(start_pos)}", f"Joints: {len(joints)}")
++    assert len(start_pos) == len(
++        joints
++    ), f"agent output dim = {len(start_pos)}, but env dim = {len(joints)}"
++
++    max_delta = 0.05
++    for _ in range(25):
++        obs = env.get_obs()
++        command_joints = agent.act(obs)
++        current_joints = obs["joint_positions"]
++        delta = command_joints - current_joints
++        max_joint_delta = np.abs(delta).max()
++        if max_joint_delta > max_delta:
++            delta = delta / max_joint_delta * max_delta
++        env.step(current_joints + delta)
++
++    obs = env.get_obs()
++    joints = obs["joint_positions"]
++    action = agent.act(obs)
++    if (action - joints > 0.5).any():
++        print("Action is too big")
++
++        # print which joints are too big
++        joint_index = np.where(action - joints > 0.8)
++        for j in joint_index:
++            print(
++                f"Joint [{j}], leader: {action[j]}, follower: {joints[j]}, diff: {action[j] - joints[j]}"
++            )
++        exit()
++
++    from gello.utils.control_utils import SaveInterface, run_control_loop
++
++    save_interface = None
++    if args.use_save_interface:
++        save_interface = SaveInterface(
++            data_dir=args.data_dir, agent_name=args.agent, expand_user=True
++        )
++
++    run_control_loop(env, agent, save_interface, use_colors=True)
++
++
++if __name__ == "__main__":
++    main(tyro.cli(Args))
+diff --git a/gello/agents/gello_agent.py b/gello/agents/gello_agent.py
+index 82ef03f..ff87885 100644
+--- a/gello/agents/gello_agent.py
++++ b/gello/agents/gello_agent.py
+@@ -1,3 +1,164 @@
++# import os
++# from dataclasses import dataclass
++# from typing import Dict, Optional, Sequence, Tuple
++
++# import numpy as np
++
++# from gello.agents.agent import Agent
++# from gello.robots.dynamixel import DynamixelRobot
++
++
++# @dataclass
++# class DynamixelRobotConfig:
++#     joint_ids: Sequence[int]
++#     """The joint ids of GELLO (not including the gripper). Usually (1, 2, 3 ...)."""
++
++#     joint_offsets: Sequence[float]
++#     """The joint offsets of GELLO. There needs to be a joint offset for each joint_id and should be a multiple of pi/2."""
++
++#     joint_signs: Sequence[int]
++#     """The joint signs of GELLO. There needs to be a joint sign for each joint_id and should be either 1 or -1.
++
++#     This will be different for each arm design. Refernce the examples below for the correct signs for your robot.
++#     """
++
++#     gripper_config: Tuple[int, int, int]
++#     """The gripper config of GELLO. This is a tuple of (gripper_joint_id, degrees in open_position, degrees in closed_position)."""
++
++#     def __post_init__(self):
++#         assert len(self.joint_ids) == len(self.joint_offsets)
++#         assert len(self.joint_ids) == len(self.joint_signs)
++
++#     def make_robot(
++#         self, port: str = "/dev/ttyUSB0", start_joints: Optional[np.ndarray] = None
++#     ) -> DynamixelRobot:
++#         return DynamixelRobot(
++#             joint_ids=self.joint_ids,
++#             joint_offsets=list(self.joint_offsets),
++#             real=True,
++#             joint_signs=list(self.joint_signs),
++#             port=port,
++#             gripper_config=self.gripper_config,
++#             start_joints=start_joints,
++#         )
++
++
++# PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
++#     # xArm
++#     "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT3M9NVB-if00-port0": DynamixelRobotConfig(
++#         joint_ids=(1, 2, 3, 4, 5, 6, 7),
++#         joint_offsets=(
++#             3 * np.pi / 2,
++#             2 * np.pi / 2,
++#             1 * np.pi / 2,
++#             4 * np.pi / 2,
++#             -2 * np.pi / 2 + 2 * np.pi,
++#             3 * np.pi / 2,
++#             4 * np.pi / 2,
++#         ),
++#         joint_signs=(1, -1, 1, 1, 1, -1, 1),
++#         gripper_config=(8, 195, 152),
++#     ),
++#     # yam
++#     "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA2U4GA-if00-port0": DynamixelRobotConfig(
++#         joint_ids=(1, 2, 3, 4, 5, 6),
++#         joint_offsets=[
++#             0 * np.pi,
++#             2 * np.pi / 2,
++#             4 * np.pi / 2,
++#             6 * np.pi / 6,
++#             5 * np.pi / 3,
++#             2 * np.pi / 2,
++#         ],
++#         joint_signs=(1, -1, -1, -1, 1, 1),
++#         gripper_config=(
++#             7,
++#             -30,
++#             24,
++#         ),  # Reversed: now starts open (-30) and closes on press (24)
++#     ),
++#     # Left UR
++#     "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBEIA-if00-port0": DynamixelRobotConfig(
++#         joint_ids=(1, 2, 3, 4, 5, 6),
++#         joint_offsets=(
++#             0,
++#             1 * np.pi / 2 + np.pi,
++#             np.pi / 2 + 0 * np.pi,
++#             0 * np.pi + np.pi / 2,
++#             np.pi - 2 * np.pi / 2,
++#             -1 * np.pi / 2 + 2 * np.pi,
++#         ),
++#         joint_signs=(1, 1, -1, 1, 1, 1),
++#         gripper_config=(7, 20, -22),
++#     ),
++#     # Right UR
++#     "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBG6A-if00-port0": DynamixelRobotConfig(
++#         joint_ids=(1, 2, 3, 4, 5, 6),
++#         joint_offsets=(
++#             np.pi + 0 * np.pi,
++#             2 * np.pi + np.pi / 2,
++#             2 * np.pi + np.pi / 2,
++#             2 * np.pi + np.pi / 2,
++#             1 * np.pi,
++#             3 * np.pi / 2,
++#         ),
++#         joint_signs=(1, 1, -1, 1, 1, 1),
++#         gripper_config=(7, 286, 248),
++#     ),
++
++#     # new config for master arm
++#     "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NNNU-if00-port0": DynamixelRobotConfig(
++#         joint_ids=(1, 2, 3, 4, 5, 6),
++#         joint_offsets=(
++#             -1 * np.pi / 2,
++#             5 * np.pi / 2,
++#             4 * np.pi / 2,
++#             5 * np.pi / 2,
++#             4 * np.pi / 2,
++#             3 * np.pi / 2,
++#         ),
++#         joint_signs=(1, 1, -1, 1, 1, 1), 
++#         gripper_config=(7, 19, -23),  # Reversed: now starts open (-30) and closes on press (24) 
++#     ),
++#     "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5I37-if00-port0": DynamixelRobotConfig(
++#         joint_ids=(1, 2, 3, 4, 5, 6),
++#         joint_offsets=(
++#             2 * np.pi / 2, #offsets to address delta between master and slave
++#             3 * np.pi / 2,
++#             2 * np.pi / 2,
++#             2 * np.pi / 2,
++#             4 * np.pi / 2,
++#             5 * np.pi / 2,
++#         ),
++#         joint_signs=(1, 1, -1, 1, 1, 1), 
++#         gripper_config=(7, 193, 240),  # Reversed: now starts open (-30) and closes on press (24) 
++#     ),
++# }
++
++
++# class GelloAgent(Agent):
++#     def __init__(
++#         self,
++#         port: str,
++#         dynamixel_config: Optional[DynamixelRobotConfig] = None,
++#         start_joints: Optional[np.ndarray] = None,
++#     ):
++#         # Ensure start_joints is a numpy array if provided
++#         if start_joints is not None and not isinstance(start_joints, np.ndarray):
++#             start_joints = np.array(start_joints)
++#         if dynamixel_config is not None:
++#             self._robot = dynamixel_config.make_robot(
++#                 port=port, start_joints=start_joints
++#             )
++#         else:
++#             assert os.path.exists(port), port
++#             assert port in PORT_CONFIG_MAP, f"Port {port} not in config map"
++
++#             config = PORT_CONFIG_MAP[port]
++#             self._robot = config.make_robot(port=port, start_joints=start_joints)
++
++#     def act(self, obs: Dict[str, np.ndarray]) -> np.ndarray:
++#         return self._robot.get_joint_state()
+ import os
+ from dataclasses import dataclass
+ from typing import Dict, Optional, Sequence, Tuple
+@@ -8,6 +169,10 @@ from gello.agents.agent import Agent
+ from gello.robots.dynamixel import DynamixelRobot
+ 
+ 
++
++from scripts.gello_get_offset import get_config, Args
++
++
+ @dataclass
+ class DynamixelRobotConfig:
+     joint_ids: Sequence[int]
+@@ -42,6 +207,9 @@ class DynamixelRobotConfig:
+             start_joints=start_joints,
+         )
+ 
++args = Args()
++config_dict = get_config(args)
++print(config_dict)
+ 
+ PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
+     # xArm
+@@ -105,6 +273,24 @@ PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
+         joint_signs=(1, 1, -1, 1, 1, 1),
+         gripper_config=(7, 286, 248),
+     ),
++    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NNNU-if00-port0": DynamixelRobotConfig(
++        joint_ids=(1, 2, 3, 4, 5, 6),
++        joint_offsets=tuple(
++            i for i in config_dict["joint_offsets"]
++        ),
++        joint_signs=(1, 1, -1, 1, 1, 1),
++        gripper_config=(7, config_dict["gripper_offsets"][0],  config_dict["gripper_offsets"][1]),
++        #gripper_config=(7, 19, -23)
++    ),
++    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5I37-if00-port0": DynamixelRobotConfig(
++        joint_ids=(1, 2, 3, 4, 5, 6),
++        joint_offsets=tuple(
++            i for i in config_dict["joint_offsets"]
++        ),
++        joint_signs=(1, 1, -1, 1, 1, 1),
++        gripper_config=(7, config_dict["gripper_offsets"][0],  config_dict["gripper_offsets"][1]),
++        #gripper_config=(7, 19, -22)
++    )
+ }
+ 
+ 
+@@ -130,4 +316,4 @@ class GelloAgent(Agent):
+             self._robot = config.make_robot(port=port, start_joints=start_joints)
+ 
+     def act(self, obs: Dict[str, np.ndarray]) -> np.ndarray:
+-        return self._robot.get_joint_state()
++        return self._robot.get_joint_state()
+\ No newline at end of file
+diff --git a/gello/robots/dynamixel.py b/gello/robots/dynamixel.py
+index 96d3897..488f29e 100644
+--- a/gello/robots/dynamixel.py
++++ b/gello/robots/dynamixel.py
+@@ -134,4 +134,7 @@ class DynamixelRobot(Robot):
+         self._torque_on = mode
+ 
+     def get_observations(self) -> Dict[str, np.ndarray]:
++
++        print("Ur5e joint Position:", self.get_joint_state())# we added this line
++
+         return {"joint_state": self.get_joint_state()}
+diff --git a/gello/robots/robotiq_gripper.py b/gello/robots/robotiq_gripper.py
+index aa24403..931c316 100644
+--- a/gello/robots/robotiq_gripper.py
++++ b/gello/robots/robotiq_gripper.py
+@@ -348,8 +348,14 @@ class RobotiqGripper:
+ def main():
+     # test open and closing the gripper
+     gripper = RobotiqGripper()
+-    gripper.connect(hostname="192.168.1.10", port=63352)
++    gripper.connect(hostname="192.168.20.25", port=63352)
++
++
++
+     # gripper.activate()
++
++
++    
+     print(gripper.get_current_position())
+     gripper.move(20, 255, 1)
+     time.sleep(0.2)
+diff --git a/gello/robots/ur.py b/gello/robots/ur.py
+index b79cfad..c5f0c00 100644
+--- a/gello/robots/ur.py
++++ b/gello/robots/ur.py
+@@ -12,6 +12,8 @@ class URRobot(Robot):
+         import rtde_control
+         import rtde_receive
+ 
++        robot_ip = "192.168.20.25"
++
+         [print("in ur robot") for _ in range(4)]
+         try:
+             self.robot = rtde_control.RTDEControlInterface(robot_ip)
+@@ -111,6 +113,7 @@ class URRobot(Robot):
+ 
+     def get_observations(self) -> Dict[str, np.ndarray]:
+         joints = self.get_joint_state()
++        print("ur5 joints:", joints) # we added this line
+         pos_quat = np.zeros(7)
+         gripper_pos = np.array([joints[-1]])
+         return {
+diff --git a/read.py b/read.py
+new file mode 100644
+index 0000000..54b9bde
+--- /dev/null
++++ b/read.py
+@@ -0,0 +1,13 @@
++import pickle
++
++# === edit this path ===
++filename = "/home/balraj/bc_data/gello/1028_172831/2025-10-28T17:28:31.492082.pkl"   # replace with your pickle file name
++
++with open(filename, "rb") as f:
++    data = pickle.load(f)
++
++print(" Pickle loaded successfully!")
++print("Type:", type(data))
++print("Keys/Length:", len(data) if hasattr(data, "__len__") else "N/A")
++print("\nPreview:")
++print(data if len(str(data)) < 500 else str(data)[:500] + "...")
+diff --git a/scripts/gello_get_offset.py b/scripts/gello_get_offset.py
+index 03d8c0f..32971ad 100644
+--- a/scripts/gello_get_offset.py
++++ b/scripts/gello_get_offset.py
+@@ -1,3 +1,106 @@
++# import os
++# import sys
++# from dataclasses import dataclass
++# from pathlib import Path
++# from typing import Tuple
++
++# import numpy as np
++# import tyro
++
++# from gello.dynamixel.driver import DynamixelDriver
++
++# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
++
++# MENAGERIE_ROOT: Path = Path(__file__).parent / "third_party" / "mujoco_menagerie"
++
++
++# @dataclass
++# class Args:
++#     port: str = "/dev/ttyUSB0"
++#     """The port that GELLO is connected to."""
++
++#     start_joints: Tuple[float, ...] = (0, 0, 0, 0, 0, 0)
++#     """The joint angles that the GELLO is placed in at (in radians)."""
++
++#     joint_signs: Tuple[float, ...] = (1, 1, -1, 1, 1, 1)
++#     """The joint angles that the GELLO is placed in at (in radians)."""
++
++#     gripper: bool = True
++#     """Whether or not the gripper is attached."""
++
++#     def __post_init__(self):
++#         assert len(self.joint_signs) == len(self.start_joints)
++#         for idx, j in enumerate(self.joint_signs):
++#             assert (
++#                 j == -1 or j == 1
++#             ), f"Joint idx: {idx} should be -1 or 1, but got {j}."
++
++#     @property
++#     def num_robot_joints(self) -> int:
++#         return len(self.start_joints)
++
++#     @property
++#     def num_joints(self) -> int:
++#         extra_joints = 1 if self.gripper else 0
++#         return self.num_robot_joints + extra_joints
++
++
++# def get_config(args: Args) -> None:
++#     joint_ids = list(range(1, args.num_joints + 1))
++#     driver = DynamixelDriver(joint_ids, port=args.port, baudrate=57600)
++
++#     # assume that the joint state shouold be args.start_joints
++#     # find the offset, which is a multiple of np.pi/2 that minimizes the error between the current joint state and args.start_joints
++#     # this is done by brute force, we seach in a range of +/- 8pi
++
++#     def get_error(offset: float, index: int, joint_state: np.ndarray) -> float:
++#         joint_sign_i = args.joint_signs[index]
++#         joint_i = joint_sign_i * (joint_state[index] - offset)
++#         start_i = args.start_joints[index]
++#         return np.abs(joint_i - start_i)
++
++#     for _ in range(10):
++#         driver.get_joints()  # warmup
++
++#     for _ in range(1):
++#         best_offsets = []
++#         curr_joints = driver.get_joints()
++#         for i in range(args.num_robot_joints):
++#             best_offset = 0
++#             best_error = 1e6
++#             for offset in np.linspace(
++#                 -8 * np.pi, 8 * np.pi, 8 * 4 + 1
++#             ):  # intervals of pi/2
++#                 error = get_error(offset, i, curr_joints)
++#                 if error < best_error:
++#                     best_error = error
++#                     best_offset = offset
++#             best_offsets.append(best_offset)
++#         print()
++#         print("best offsets               : ", [f"{x:.3f}" for x in best_offsets])
++#         print(
++#             "best offsets function of pi: ["
++#             + ", ".join([f"{int(np.round(x/(np.pi/2)))}*np.pi/2" for x in best_offsets])
++#             + " ]",
++#         )
++#         if args.gripper:
++#             print(
++#                 "gripper open (degrees)       ",
++#                 np.rad2deg(driver.get_joints()[-1]) - 0.2,
++#             )
++#             print(
++#                 "gripper close (degrees)      ",
++#                 np.rad2deg(driver.get_joints()[-1]) - 42,
++#             )
++
++
++# def main(args: Args) -> None:
++#     get_config(args)
++
++
++# if __name__ == "__main__":
++#     main(tyro.cli(Args))
++
+ import os
+ import sys
+ from dataclasses import dataclass
+@@ -19,7 +122,7 @@ class Args:
+     port: str = "/dev/ttyUSB0"
+     """The port that GELLO is connected to."""
+ 
+-    start_joints: Tuple[float, ...] = (0, 0, 0, 0, 0, 0)
++    start_joints: Tuple[float, ...] = (1.57, -1.57, 1.57, -1.57, -1.57, 0)
+     """The joint angles that the GELLO is placed in at (in radians)."""
+ 
+     joint_signs: Tuple[float, ...] = (1, 1, -1, 1, 1, 1)
+@@ -45,7 +148,7 @@ class Args:
+         return self.num_robot_joints + extra_joints
+ 
+ 
+-def get_config(args: Args) -> None:
++def get_config(args: Args):
+     joint_ids = list(range(1, args.num_joints + 1))
+     driver = DynamixelDriver(joint_ids, port=args.port, baudrate=57600)
+ 
+@@ -92,6 +195,13 @@ def get_config(args: Args) -> None:
+                 "gripper close (degrees)      ",
+                 np.rad2deg(driver.get_joints()[-1]) - 42,
+             )
++    
++    driver.close()
++    return {"joint_offsets": best_offsets,
++            "gripper_offsets": (np.rad2deg(driver.get_joints()[-1]) - 0.2, 
++                               np.rad2deg(driver.get_joints()[-1]) - 42),
++            }
++
+ 
+ 
+ def main(args: Args) -> None:
+@@ -99,4 +209,4 @@ def main(args: Args) -> None:
+ 
+ 
+ if __name__ == "__main__":
+-    main(tyro.cli(Args))
++    main(tyro.cli(Args))
+\ No newline at end of file
+
+
+MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
+ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6
+b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL
+MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv
+b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj
+ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM
+9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw
+IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6
+VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L
+93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm
+jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
+AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA
+A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI
+U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs
+N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv
+o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU
+5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy
+rqXRfboQnoZsG4q5WTP468SQvvG5
+
+
+
+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
