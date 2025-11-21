@@ -3,27 +3,39 @@ from typing import Dict
 import numpy as np
 
 from gello.robots.robot import Robot
+import rtde_control
+import rtde_receive
+import dashboard_client
+import time
+from gello.robots.robotiq_gripper import RobotiqGripper
+
 
 
 class URRobot(Robot):
     """A class representing a UR robot."""
 
     def __init__(self, robot_ip: str = "192.168.1.10", no_gripper: bool = False):
-        import rtde_control
-        import rtde_receive
+
 
         robot_ip = "192.168.20.25"
 
         [print("in ur robot") for _ in range(4)]
         try:
             self.robot = rtde_control.RTDEControlInterface(robot_ip)
+            self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
+            self.dash = dashboard_client.DashboardClient(robot_ip)
+            self.dash.connect()
         except Exception as e:
             print(e)
             print(robot_ip)
 
-        self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
+
+            
+            
+           
+
         if not no_gripper:
-            from gello.robots.robotiq_gripper import RobotiqGripper
+           
 
             self.gripper = RobotiqGripper()
             self.gripper.connect(hostname=robot_ip, port=63352)
@@ -81,14 +93,21 @@ class URRobot(Robot):
         gain = 100
 
         robot_joints = joint_state[:6]
+        print("aaa")
         t_start = self.robot.initPeriod()
-        self.robot.servoJ(
-            robot_joints, velocity, acceleration, dt, lookahead_time, gain
-        )
+        print("bbb")
+        try:
+            self.robot.servoJ(robot_joints, velocity, acceleration, dt, lookahead_time, gain)
+        except:
+            print("ServoJ failed")
+        print("ccc")
         if self._use_gripper:
             gripper_pos = joint_state[-1] * 255
             self.gripper.move(gripper_pos, 255, 10)
+        print("ddd")
+        
         self.robot.waitPeriod(t_start)
+        print("eee")
 
     def freedrive_enabled(self) -> bool:
         """Check if the robot is in freedrive mode.
@@ -111,17 +130,37 @@ class URRobot(Robot):
             self._free_drive = False
             self.robot.endFreedriveMode()
 
+    def checkprotective_n_clear(self):
+        test = self.r_inter.getSafetyStatusBits()
+        print(f"{test:010b}")
+        second_bit = (test >> 2) & 1
+        print(second_bit)
+        if second_bit == 1:
+            print("Robot is in protective stop. Attempting to unlock...")
+            time.sleep(1)
+            self.dash.unlockProtectiveStop()
+            time.sleep(1)
+            print("Unlocked protective stop.")
+            print(self.dash.getLoadedProgram())
+            self.dash.stop()
+            time.sleep(1)
+            self.dash.play()
+            time.sleep(1)
+
     def get_observations(self) -> Dict[str, np.ndarray]:
         joints = self.get_joint_state()
-        print("ur5 joints:", joints) # we added this line
+        # print("ur5 joints:", joints) # we added this line
         pos_quat = np.zeros(7)
         gripper_pos = np.array([joints[-1]])
+        self.checkprotective_n_clear()
+    
         return {
             "joint_positions": joints,
             "joint_velocities": joints,
             "ee_pos_quat": pos_quat,
             "gripper_position": gripper_pos,
         }
+    
 
 
 def main():
@@ -130,6 +169,7 @@ def main():
     print(ur)
     ur.set_freedrive_mode(True)
     print(ur.get_observations())
+
 
 
 if __name__ == "__main__":

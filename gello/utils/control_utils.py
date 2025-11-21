@@ -9,7 +9,7 @@ import numpy as np
 
 from gello.agents.agent import Agent
 from gello.env import RobotEnv
-
+ 
 DEFAULT_MAX_JOINT_DELTA = 1.0
 
 
@@ -71,6 +71,7 @@ def move_to_start_position(
 
 class SaveInterface:
     """Handles keyboard-based data saving interface."""
+    
 
     def __init__(
         self,
@@ -91,6 +92,9 @@ class SaveInterface:
         self.data_dir = Path(data_dir).expanduser() if expand_user else Path(data_dir)
         self.agent_name = agent_name
         self.save_path: Optional[Path] = None
+
+        self.dash = dashboard_client.DashboardClient(robot_ip)
+        self.dash.connect()
 
         print("Save interface enabled. Use keyboard controls:")
         print("  S: Start recording")
@@ -187,3 +191,4 @@ def run_control_loop(
                 break
 
         obs = env.step(action)
+        # print("AAA")
