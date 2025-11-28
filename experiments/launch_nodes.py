@@ -9,14 +9,17 @@ from gello.zmq_core.robot_node import ZMQServerRobot
 
 @dataclass
 class Args:
-    robot: str = "xarm"
+    robot: str = "ur"
     robot_port: int = 6001
     hostname: str = "127.0.0.1"
-    robot_ip: str = "192.168.1.10"
+    robot_ip: str = "192.168.20.25"
 
 
 def launch_robot_server(args: Args):
-    port = args.robot_port
+    port = args.robot_port  
+    print(port)
+    print(args.robot_ip)
+    print("aaa")
     if args.robot == "sim_ur":
         MENAGERIE_ROOT: Path = (
             Path(__file__).parent.parent / "third_party" / "mujoco_menagerie"
@@ -71,6 +74,7 @@ def launch_robot_server(args: Args):
 
             robot = XArmRobot(ip=args.robot_ip)
         elif args.robot == "ur":
+            print("zzz")
             from gello.robots.ur import URRobot
 
             robot = URRobot(robot_ip=args.robot_ip)
@@ -102,8 +106,11 @@ def launch_robot_server(args: Args):
 
 
 def main(args):
+    print("xxx")
     launch_robot_server(args)
 
 
 if __name__ == "__main__":
+
+    print("yyy")
     main(tyro.cli(Args))

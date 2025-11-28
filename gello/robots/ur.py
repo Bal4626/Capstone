@@ -5,29 +5,30 @@ import numpy as np
 from gello.robots.robot import Robot
 import rtde_control
 import rtde_receive
-import dashboard_client
+# import dashboard_client
+from dashboard_client import DashboardClient
 import time
 from gello.robots.robotiq_gripper import RobotiqGripper
-
+import traceback
 
 
 class URRobot(Robot):
     """A class representing a UR robot."""
 
-    def __init__(self, robot_ip: str = "192.168.1.10", no_gripper: bool = False):
+    def __init__(self, robot_ip: str = "", no_gripper: bool = False):
 
 
-        robot_ip = "192.168.20.25"
+        self.robot_ip = robot_ip
 
         [print("in ur robot") for _ in range(4)]
         try:
-            self.robot = rtde_control.RTDEControlInterface(robot_ip)
-            self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
-            self.dash = dashboard_client.DashboardClient(robot_ip)
+            self.robot = rtde_control.RTDEControlInterface(self.robot_ip)
+            self.r_inter = rtde_receive.RTDEReceiveInterface(self.robot_ip)
+            self.dash = DashboardClient(self.robot_ip)
             self.dash.connect()
         except Exception as e:
             print(e)
-            print(robot_ip)
+            print(self.robot_ip)
 
 
             
@@ -61,6 +62,7 @@ class URRobot(Robot):
     def _get_gripper_pos(self) -> float:
         import time
 
+
         time.sleep(0.01)
         gripper_pos = self.gripper.get_current_position()
         assert 0 <= gripper_pos <= 255, "Gripper position must be between 0 and 255"
@@ -81,6 +83,8 @@ class URRobot(Robot):
         return pos
 
     def command_joint_state(self, joint_state: np.ndarray) -> None:
+        self.checkprotective_n_clear()
+
         """Command the leader robot to a given state.
 
         Args:
@@ -130,23 +134,71 @@ class URRobot(Robot):
             self._free_drive = False
             self.robot.endFreedriveMode()
 
-    def checkprotective_n_clear(self):
-        test = self.r_inter.getSafetyStatusBits()
-        print(f"{test:010b}")
-        second_bit = (test >> 2) & 1
-        print(second_bit)
-        if second_bit == 1:
-            print("Robot is in protective stop. Attempting to unlock...")
-            time.sleep(1)
-            self.dash.unlockProtectiveStop()
-            time.sleep(1)
-            print("Unlocked protective stop.")
-            print(self.dash.getLoadedProgram())
-            self.dash.stop()
-            time.sleep(1)
-            self.dash.play()
-            time.sleep(1)
+   
 
+    def checkprotective_n_clear(self):
+        bits = self.r_inter.getSafetyStatusBits()
+        bit2 = (bits >> 2) & 1   # IS_PROTECTIVE_STOPPED
+        print(f"{bits:010b}")
+        print("bit2 =", bit2)
+
+        if bit2 == 0:
+            return False  # no protective stop
+
+        # 1) Wait a bit after collision (UR requires ~5s)
+        time.sleep(5)
+
+        # 2) Clear popup + unlock
+        self.dash.closeSafetyPopup()     # or closePopup()
+        self.dash.unlockProtectiveStop()
+
+        # 3) (Optional) Wait until safety bit clears
+        while self.r_inter.isProtectiveStopped():
+            time.sleep(0.1)
+
+        # 4) Start the program again if not running (ExternalControl / last URP)
+        if not self.dash.running():
+            # Now reupload RTDE script
+            ok = self.robot.reuploadScript()
+            print("Reupload:", ok)
+            if not ok:
+                print("Still no RTDE control script – need to press PLAY on pendant / check program.")
+                return
+            time.sleep(2)# wait a bit before starting
+
+            try:
+                result = self.dash.play()
+                print("Dashboard play():", result)
+            except Exception as e:
+                traceback.print_exc()
+                print("Dashboard play failed:", e)
+                print("lets recreate a control object.")
+                del self.robot
+
+                time.sleep(1)
+                self.robot = rtde_control.RTDEControlInterface(self.robot_ip)
+                print("recreated object")
+    
+        # Kick controller once
+        q = self.r_inter.getActualQ()
+        try:
+            self.robot.servoJ(q, 0.1, 0.1, 1/500, 0.2, 100)
+        except Exception as e:
+            print("Recovery servo failed:", e)
+            return
+        print("Recovery complete.")
+        return True
+
+    
+
+
+
+
+    
+
+
+
+    
     def get_observations(self) -> Dict[str, np.ndarray]:
         joints = self.get_joint_state()
         # print("ur5 joints:", joints) # we added this line
@@ -164,7 +216,8 @@ class URRobot(Robot):
 
 
 def main():
-    robot_ip = "192.168.1.11"
+    print("Testing UR Robot")
+    robot_ip = "192.168.20.25"
     ur = URRobot(robot_ip, no_gripper=True)
     print(ur)
     ur.set_freedrive_mode(True)
@@ -174,3 +227,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
