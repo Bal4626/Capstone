@@ -38,12 +38,16 @@ POSITION_CONTROL_MODE = 3
 TORQUE_TO_CURRENT_MAPPING = {
     "XC330_T288_T": 1158.73,
     "XM430_W210_T": 1000 / 2.69,
+    "XL330_M288": 1470/0.52,
+    "XL330_M077": 1470/0.215,
 }
 
 # Servo specifications for current limits (in mA)
 SERVO_CURRENT_LIMITS = {
     "XC330_T288_T": 1193,
     "XM430_W210_T": 1263,
+    "XL330_M288": 1200, #1750,
+    "XL330_M077": 1200  #1750
 }
 
 
@@ -351,8 +355,8 @@ class DynamixelDriver(DynamixelDriverProtocol):
             self._fake_currents = np.array(currents, dtype=float)
             return
 
-        if len(currents) != len(self._ids):
-            raise ValueError("The length of currents must match the number of servos")
+        # if len(currents) != len(self._ids):
+        #     raise ValueError("The length of currents must match the number of servos")
         if not self._torque_enabled:
             raise RuntimeError("Torque must be enabled to set currents")
 
@@ -385,7 +389,10 @@ class DynamixelDriver(DynamixelDriverProtocol):
                 "Torque-to-current mapping is not configured. Provide servo_types to the driver."
             )
         torques_array = np.array(torques)
+        # print("driver torques:",torques_array)
         currents = (self.torque_to_current_map * torques_array).tolist()
+        print("current",currents)
+        # print("current",currents)
         self.set_current(currents)
 
     def torque_enabled(self) -> bool:
@@ -601,6 +608,9 @@ def main():
     # Test setting torque mode
     driver.set_torque_mode(True)
     driver.set_torque_mode(False)
+    #added this
+    driver.set_torque_mode(True)
+    # driver.set_torque([0.0] * 6)
 
     # Test reading the joint angles
     try:
@@ -609,8 +619,58 @@ def main():
             print(f"Joint angles for IDs {ids}: {joint_angles}")
             # print(f"Joint angles for IDs {ids[1]}: {joint_angles[1]}")
     except KeyboardInterrupt:
+        driver.set_torque_mode(False)
+        driver.set_operating_mode(POSITION_CONTROL_MODE)
         driver.close()
 
+# #test torque control on first joint
+# def main():
+#     # === CONFIGURATION ===
+#     ids = [1]  # Change to your actual joint ID (e.g., [1,2,3,4,5,6] for full arm)
+#     port = "/dev/ttyUSB0"  # Update to your actual port
+#     servo_types = ["XL330_M288"]  # Match your hardware
+
+#     print("Creating Dynamixel driver in torque mode...")
+#     driver = DynamixelDriver(ids, servo_types=servo_types, port=port, baudrate=57600)
+
+#     try:
+#         # Step 1: Switch to current control mode
+#         print("Disabling torque...")
+#         driver.set_torque_mode(False)
+#         print("Setting operating mode to CURRENT_CONTROL_MODE...")
+#         driver.set_operating_mode(CURRENT_CONTROL_MODE)
+#         print("Enabling torque in current mode...")
+#         driver.set_torque_mode(True)
+
+#         # Optional: verify mode
+#         # driver.verify_operating_mode(CURRENT_CONTROL_MODE)
+
+#         print("Driver ready in torque mode. Applying small torque now...")
+
+#         # Step 2: Apply a small constant torque (e.g., 0.05 Nm)
+#         test_torque = 0.04  # Nm (safe for XL330 at 5V)
+#         torque_command = [test_torque] * len(ids)
+
+#         print(f"Applying torque: {test_torque} Nm to joints {ids}")
+#         driver.set_torque(torque_command)
+
+#         # Step 3: Hold torque for 5 seconds
+#         time.sleep(3)
+
+#         # Step 4: Zero torque
+#         print("Zeroing torque...")
+#         driver.set_torque([0.0] * len(ids))
+#         time.sleep(1.0)
+
+#     except KeyboardInterrupt:
+#         print("\nInterrupted by user.")
+#     except Exception as e:
+#         print(f"Error during torque test: {e}")
+#     finally:
+#         # Always disable torque before exit
+#         print("Disabling torque and closing...")
+#         driver.set_torque_mode(False)
+#         driver.close()
 
 if __name__ == "__main__":
     main()  # Test the driver

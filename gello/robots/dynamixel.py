@@ -18,6 +18,7 @@ class DynamixelRobot(Robot):
         baudrate: int = 57600,
         gripper_config: Optional[Tuple[int, float, float]] = None,
         start_joints: Optional[np.ndarray] = None,
+        servo_types: Optional[Sequence[str]] = None
     ):
         from gello.dynamixel.driver import (
             DynamixelDriver,
@@ -70,7 +71,7 @@ class DynamixelRobot(Robot):
         ), f"joint_signs: {self._joint_signs}"
 
         if real:
-            self._driver = DynamixelDriver(joint_ids, port=port, baudrate=baudrate)
+            self._driver = DynamixelDriver(joint_ids, port=port, baudrate=baudrate, servo_types=servo_types)
             self._driver.set_torque_mode(False)
         else:
             self._driver = FakeDynamixelDriver(joint_ids)
@@ -82,6 +83,8 @@ class DynamixelRobot(Robot):
             # loop through all joints and add +- 2pi to the joint offsets to get the closest to start joints
             new_joint_offsets = []
             current_joints = self.get_joint_state()
+            print(current_joints)
+            print(start_joints)
             assert current_joints.shape == start_joints.shape
             if gripper_config is not None:
                 current_joints = current_joints[:-1]
@@ -138,3 +141,29 @@ class DynamixelRobot(Robot):
         print("Ur5e joint Position:", self.get_joint_state())# we added this line
 
         return {"joint_state": self.get_joint_state()}
+
+    def set_current_control_mode(self):
+        from gello.dynamixel.driver import CURRENT_CONTROL_MODE
+        self._driver.set_torque_mode(False)          # must disable torque to change mode
+        self._driver.set_operating_mode(CURRENT_CONTROL_MODE)
+        self._driver.set_torque_mode(True)           # re-enable torque in current mode
+    
+    def set_position_control_mode(self):
+        from gello.dynamixel.driver import POSITION_CONTROL_MODE
+        self._driver.set_torque_mode(False)          # must disable torque to change mode
+        self._driver.set_operating_mode(POSITION_CONTROL_MODE)
+        self._driver.set_torque_mode(False)           # re-enable torque in current mode
+
+    def get_joint_velocities(self) -> np.ndarray:
+        _, vel = self._driver.get_positions_and_velocities()
+        
+        # Apply joint_signs (velocity flips sign same as position)
+        vel = vel * self._joint_signs
+
+        # Gripper: set velocity to 0 or handle specially
+        if self.gripper_open_close is not None:
+            # Gripper velocity in rad/s doesn't map to [0,1]/s meaningfully
+            # Common practice: set to 0 or estimate from position diff
+            vel[-1] = 0.0  # or keep raw if needed
+
+        return vel

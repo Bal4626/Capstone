@@ -48,6 +48,10 @@ class ZMQServerRobot:
                     result = self._robot.command_joint_state(**args)
                 elif method == "get_observations":
                     result = self._robot.get_observations()
+                elif method == "get_jacobian":
+                    result = self._robot.get_jacobian()
+                elif method == "get_external_joint_torques":
+                    result = self._robot.get_external_joint_torques()
                 else:
                     result = {"error": "Invalid method"}
                     print(result)
@@ -133,6 +137,17 @@ class ZMQClientRobot(Robot):
             return result
         except zmq.Again:
             raise RuntimeError("ZMQ timeout - robot may be disconnected")
+
+    def get_jacobian(self):
+        request = {"method": "get_jacobian"}
+        self._socket.send(pickle.dumps(request))
+        return pickle.loads(self._socket.recv())
+    
+    def get_external_joint_torques(self):
+        request = {"method": "get_external_joint_torques"}
+        self._socket.send(pickle.dumps(request))
+        return pickle.loads(self._socket.recv())
+
 
     def close(self) -> None:
         """Close the ZMQ socket and context."""

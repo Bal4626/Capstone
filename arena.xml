@@ -238,6 +238,7 @@
         </body>
       </body>
     </body>
+    <geom name="haptic_wall" class="/" type="box" contype="1" conaffinity="1" group="0" size="0.02 0.5 0.5" rgba="0.80000000000000004 0.20000000000000001 0.20000000000000001 1" pos="0.40000000000000002 0 0.5"/>
   </worldbody>
   <contact>
     <exclude name="ur5e/robotiq_2f85//unnamed_contact_0" body1="ur5e/robotiq_2f85/base" body2="ur5e/robotiq_2f85/left_driver"/>
@@ -267,6 +268,10 @@
     <general name="ur5e/wrist_3" class="ur5e/size1" joint="ur5e/wrist_3_joint"/>
     <general name="ur5e/robotiq_2f85/fingers_actuator" class="ur5e/robotiq_2f85/2f85" ctrlrange="0 255" forcerange="-5 5" tendon="ur5e/robotiq_2f85/split" gainprm="0.31372549999999999 0 0" biasprm="0 -100 -10"/>
   </actuator>
+  <sensor>
+    <force name="ee_force" site="attachment_site"/>
+    <torque name="ee_torque" site="attachment_site"/>
+  </sensor>
   <keyframe>
     <key name="ur5e/home" qpos="-1.5708 -1.5708 1.5708 -1.5708 -1.5708 0 0 0 0 0 0 0 0 0" ctrl="-1.5708 -1.5708 1.5708 -1.5708 -1.5708 0 0"/>
   </keyframe>

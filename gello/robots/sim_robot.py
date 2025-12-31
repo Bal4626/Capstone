@@ -66,6 +66,27 @@ def build_scene(robot_xml_path: str, gripper_xml_path: Optional[str] = None):
     arena.worldbody.attach(arm_simulate)
     # arena.worldbody.attach(arm_copy)
 
+        # Add sensors at attachment_site
+    arena.sensor.add("force", site="attachment_site", name="ee_force")
+    arena.sensor.add("torque", site="attachment_site", name="ee_torque")
+
+    # ===== ADD WALL HERE =====
+    # Wall on the LEFT (positive Y direction in typical UR setup)
+    wall_size = [0.02, 0.5, 0.5]   # thickness (X), width (Y), height (Z)
+    wall_pos = [0.4, 0, 0.5]     # in front (X), left (Y), elevated (Z)
+    arena.worldbody.add(
+        "geom",
+        name="haptic_wall",
+        type="box",
+        size=wall_size,
+        pos=wall_pos,
+        rgba=[0.8, 0.2, 0.2, 1.0],  # reddish
+        contype=1,                  # can generate contacts
+        conaffinity=1,              # collides with objects of conaffinity=1
+        group=0,
+    )
+    # =========================
+
     return arena
 
 
@@ -158,13 +179,23 @@ class MujocoRobotServer:
 
         self._num_joints = self._model.nu
 
-        self._joint_state = np.zeros(self._num_joints)
+        # self._joint_state = np.zeros(self._num_joints)
+        self._joint_state = np.array([1.57, -1.57, 1.57, -1.57, -1.57, 0, 0])
         self._joint_cmd = self._joint_state
 
         self._zmq_server = ZMQRobotServer(robot=self, host=host, port=port)
         self._zmq_server_thread = ZMQServerThread(self._zmq_server)
 
         self._print_joints = print_joints
+
+        #testing for jacobian calculation
+        # Cache site ID for efficiency
+        try:
+            self._ee_site_id = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_SITE, "attachment_site")
+        except Exception:
+            self._ee_site_id = -1
+            print("Warning: 'attachment_site' not found. Jacobian test disabled.")
+            self._test_jacobian = False
 
     def num_dofs(self) -> int:
         return self._num_joints
@@ -193,6 +224,8 @@ class MujocoRobotServer:
     def get_observations(self) -> Dict[str, np.ndarray]:
         joint_positions = self._data.qpos.copy()[: self._num_joints]
         joint_velocities = self._data.qvel.copy()[: self._num_joints]
+        joint_torques = self._data.qfrc_constraint.copy()
+
         ee_site = "attachment_site"
         try:
             ee_pos = self._data.site_xpos.copy()[
@@ -213,6 +246,7 @@ class MujocoRobotServer:
             "joint_velocities": joint_velocities,
             "ee_pos_quat": np.concatenate([ee_pos, ee_quat]),
             "gripper_position": gripper_pos,
+            "torques": joint_torques[:6]
         }
 
     def serve(self) -> None:

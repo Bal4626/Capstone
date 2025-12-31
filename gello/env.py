@@ -22,7 +22,7 @@ class RobotEnv:
     def __init__(
         self,
         robot: Robot,
-        control_rate_hz: float = 100.0,
+        control_rate_hz: float = 200.0,
         camera_dict: Optional[Dict[str, CameraDriver]] = None,
     ) -> None:
         self._robot = robot
@@ -70,13 +70,25 @@ class RobotEnv:
             observations[f"{name}_depth"] = depth
 
         robot_obs = self._robot.get_observations()
-        assert "joint_positions" in robot_obs
-        assert "joint_velocities" in robot_obs
-        assert "ee_pos_quat" in robot_obs
+        #simulation wont be able to obtain forces
+        required_keys = ["joint_positions", "joint_velocities", "ee_pos_quat"]
+        for key in required_keys:
+            assert key in robot_obs, f"Missing required observation: {key}"
+        # assert "joint_positions" in robot_obs
+        # assert "joint_velocities" in robot_obs
+        # assert "ee_pos_quat" in robot_obs
+        # assert "forces" in robot_obs
         observations["joint_positions"] = robot_obs["joint_positions"]
         observations["joint_velocities"] = robot_obs["joint_velocities"]
         observations["ee_pos_quat"] = robot_obs["ee_pos_quat"]
-        observations["gripper_position"] = robot_obs["gripper_position"]
+        # observations["gripper_position"] = robot_obs["gripper_position"]
+        observations["torques"] = robot_obs["torques"]
+        # Handle 'forces' optionally
+        if "forces" in robot_obs:
+            observations["forces"] = robot_obs["forces"]
+        else:
+            # Provide dummy forces if not available (e.g., in simulation)
+            observations["forces"] = np.zeros_like(robot_obs["joint_positions"])
         return observations
 
 

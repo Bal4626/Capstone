@@ -11,7 +11,6 @@ import tyro
 
 from gello.agents.agent import DummyAgent
 from gello.agents.gello_agent import GelloAgent
-from gello.agents.spacemouse_agent import SpacemouseAgent
 from gello.env import RobotEnv
 from gello.zmq_core.robot_node import ZMQClientRobot, ZMQServerRobot
 
@@ -21,16 +20,20 @@ class Args:
     hz: int = 100
 
     agent: str = "gello"
-    robot: str = "ur5"
-    gello_port: Optional[str] = None
+    robot: str = "sim_ur"
+    gello_port: Optional[str] = "/dev/ttyUSB0"
+
     mock: bool = False
     verbose: bool = False
 
     hostname: str = "127.0.0.1"
     robot_port: int = 6001
+    robot_ip = "192.168.201.101"
+
 
 
 def launch_robot_server(port: int, args: Args):
+    print(Args)
     if args.robot == "sim_ur":
         MENAGERIE_ROOT: Path = (
             Path(__file__).parent.parent / "third_party" / "mujoco_menagerie"

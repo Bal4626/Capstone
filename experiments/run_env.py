@@ -55,13 +55,27 @@ class Args:
     bimanual: bool = False
     verbose: bool = False
 
+    # Inside your existing @dataclass Args:
+    simulate: bool = False
+    sim_force: Tuple[float, ...] = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)  # Fx, Fy, Fz, Mx, My, Mz
+
     def __post_init__(self):
         if self.start_joints is not None:
             self.start_joints = np.array(self.start_joints)
 
 
 def main(args):
-    if args.mock:
+    if args.simulate:
+        from gello.robots.simulated_ur5 import SimulatedUR5
+        print_color("🚀 Running in SIMULATION mode", color="yellow")
+        robot_client = SimulatedUR5(
+            start_joints=args.start_joints,
+            constant_force=np.array(args.sim_force),
+            use_gripper=True  # or True if you want 7-DOF
+        )
+        camera_clients = {}
+
+    elif args.mock:
         robot_client = PrintRobot(8, dont_print=True)
         camera_clients = {}
     else:
@@ -74,62 +88,34 @@ def main(args):
     env = RobotEnv(robot_client, control_rate_hz=args.hz, camera_dict=camera_clients)
 
     agent_cfg = {}
+
+
     if args.bimanual:
         if args.agent == "gello":
             # dynamixel control box port map (to distinguish left and right gello)
-            right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBG6A-if00-port0"
-            left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBEIA-if00-port0"
+            right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0"
+            left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0"
             agent_cfg = {
                 "_target_": "gello.agents.agent.BimanualAgent",
                 "agent_left": {
                     "_target_": "gello.agents.gello_agent.GelloAgent",
                     "port": left,
+                    "start_joints": (-1.57, -1.57, -1.57, -1.57, 1.57, 0)
                 },
                 "agent_right": {
                     "_target_": "gello.agents.gello_agent.GelloAgent",
                     "port": right,
+                    "start_joints":(1.57, -1.57, 1.57, -1.57, -1.57, 0)
                 },
             }
-        elif args.agent == "quest":
-            agent_cfg = {
-                "_target_": "gello.agents.agent.BimanualAgent",
-                "agent_left": {
-                    "_target_": "gello.agents.quest_agent.SingleArmQuestAgent",
-                    "robot_type": args.robot_type,
-                    "which_hand": "l",
-                },
-                "agent_right": {
-                    "_target_": "gello.agents.quest_agent.SingleArmQuestAgent",
-                    "robot_type": args.robot_type,
-                    "which_hand": "r",
-                },
-            }
-        elif args.agent == "spacemouse":
-            left_path = "/dev/hidraw0"
-            right_path = "/dev/hidraw1"
-            agent_cfg = {
-                "_target_": "gello.agents.agent.BimanualAgent",
-                "agent_left": {
-                    "_target_": "gello.agents.spacemouse_agent.SpacemouseAgent",
-                    "robot_type": args.robot_type,
-                    "device_path": left_path,
-                    "verbose": args.verbose,
-                },
-                "agent_right": {
-                    "_target_": "gello.agents.spacemouse_agent.SpacemouseAgent",
-                    "robot_type": args.robot_type,
-                    "device_path": right_path,
-                    "verbose": args.verbose,
-                    "invert_button": True,
-                },
-            }
+
         else:
             raise ValueError(f"Invalid agent name for bimanual: {args.agent}")
 
         # System setup specific. This reset configuration works well on our setup. If you are mounting the robot
         # differently, you need a separate reset joint configuration.
-        reset_joints_left = np.deg2rad([0, -90, -90, -90, 90, 0])
-        reset_joints_right = np.deg2rad([0, -90, 90, -90, -90, 0])
+        reset_joints_left = np.deg2rad([-90, -90, -90, -90, 90, 0])
+        reset_joints_right = np.deg2rad([90, -90, 90, -90, -90, 0])
         reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
         curr_joints = env.get_obs()["joint_positions"]
         max_delta = (np.abs(curr_joints - reset_joints)).max()
@@ -162,10 +148,10 @@ def main(args):
             else:
                 reset_joints = np.array(args.start_joints)
 
-            # curr_joints = env.get_obs()["joint_positions"]
-            # curr_joints = np.array(curr_joints)
-
-            curr_joints = np.asarray(env.get_obs()["joint_positions"], dtype=float).reshape(-1)
+            curr_joints = np.asarray(env.get_obs()["joint_positions"])
+            # curr_joints = np.array(curr_joints)   
+            # print(reset_joints,curr_joints)
+            # curr_joints = np.asarray(env.get_obs()["joint_positions"], dtype=float).reshape(-1)
             reset_joints = _match_dofs(reset_joints, curr_joints.size)
             if reset_joints.shape == curr_joints.shape:
                 max_delta = (np.abs(curr_joints - reset_joints)).max()
@@ -204,16 +190,8 @@ def main(args):
     #joints = obs["joint_positions"]
     joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)  # (6,)
     start_pos = _match_dofs(start_pos, joints.size)
-
-    # # Ensure numpy arrays
-    # joints = np.asarray(joints, dtype=float).reshape(-1)         # (6,)
-    # start_pos = np.asarray(start_pos, dtype=float).reshape(-1)    # (7,) currently
-
-    # # Drop gripper if present
-    # if start_pos.size == joints.size + 1:
-    #     start_pos = start_pos[:joints.size]
-
-
+    print("ur5 joints",joints)
+    print("dynamixel joints:",start_pos)
     abs_deltas = np.abs(start_pos - joints)
     id_max_joint_delta = np.argmax(abs_deltas)
 
@@ -280,7 +258,6 @@ def main(args):
         )
 
     run_control_loop(env, agent, save_interface, use_colors=True)
-
 
 if __name__ == "__main__":
     main(tyro.cli(Args))

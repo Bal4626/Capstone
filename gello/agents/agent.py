@@ -38,6 +38,11 @@ class BimanualAgent(Agent):
             assert L == half_dim * 2, f"{key} must be even, something is wrong"
             left_obs[key] = val[:half_dim]
             right_obs[key] = val[half_dim:]
+        
+        print("bimanual combined",np.concatenate(
+            [self.agent_left.act(left_obs), self.agent_right.act(right_obs)]
+        ))
         return np.concatenate(
             [self.agent_left.act(left_obs), self.agent_right.act(right_obs)]
         )
+    
