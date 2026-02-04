@@ -15,9 +15,7 @@ import traceback
 class URRobot(Robot):
     """A class representing a UR robot."""
 
-    def __init__(self, robot_ip: str = "", no_gripper: bool = False):
-
-
+    def __init__(self, robot_ip: str = "", no_gripper: bool = True): #BALRAJ
         self.robot_ip = robot_ip
 
         [print("in ur robot") for _ in range(4)]
@@ -29,15 +27,7 @@ class URRobot(Robot):
         except Exception as e:
             print(e)
             print(self.robot_ip)
-
-
-            
-            
-           
-
         if not no_gripper:
-           
-
             self.gripper = RobotiqGripper()
             self.gripper.connect(hostname=robot_ip, port=63352)
             print("gripper connected")
@@ -190,15 +180,6 @@ class URRobot(Robot):
         return True
 
     
-
-
-
-
-    
-
-
-
-    
     def get_observations(self) -> Dict[str, np.ndarray]:
         joints = self.get_joint_state()
         # print("ur5 joints:", joints) # we added this line
@@ -212,8 +193,6 @@ class URRobot(Robot):
             "ee_pos_quat": pos_quat,
             "gripper_position": gripper_pos,
         }
-    
-
 
 def main():
     print("Testing UR Robot")
@@ -227,4 +206,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

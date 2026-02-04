@@ -44,7 +44,7 @@ class Args:
     wrist_camera_port: int = 5000
     base_camera_port: int = 5001
     hostname: str = "127.0.0.1"
-    robot_type: str = None  # only needed for quest agent or spacemouse agent
+    robot_type: Optional[str] = None  # only needed for quest agent or spacemouse agent
     hz: int = 100
     start_joints: Optional[Tuple[float, ...]] = None
 
@@ -77,17 +77,21 @@ def main(args):
     if args.bimanual:
         if args.agent == "gello":
             # dynamixel control box port map (to distinguish left and right gello)
-            right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBG6A-if00-port0"
-            left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBEIA-if00-port0"
+            # right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0"
+            # left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0"
+            left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0"
+            right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0"
             agent_cfg = {
                 "_target_": "gello.agents.agent.BimanualAgent",
                 "agent_left": {
                     "_target_": "gello.agents.gello_agent.GelloAgent",
                     "port": left,
+                    "start_joints": (-1.57, -1.57, -1.57, -1.57,  1.57, 0.0),
                 },
                 "agent_right": {
                     "_target_": "gello.agents.gello_agent.GelloAgent",
                     "port": right,
+                    "start_joints":  ( 1.57, -1.57,  1.57, -1.57, -1.57, 0.0),
                 },
             }
         elif args.agent == "quest":
@@ -128,8 +132,10 @@ def main(args):
 
         # System setup specific. This reset configuration works well on our setup. If you are mounting the robot
         # differently, you need a separate reset joint configuration.
-        reset_joints_left = np.deg2rad([0, -90, -90, -90, 90, 0])
-        reset_joints_right = np.deg2rad([0, -90, 90, -90, -90, 0])
+        reset_joints_left = np.deg2rad([-90, -90, -90, -90, 90, 0])
+        reset_joints_right = np.deg2rad([90, -90, 90, -90, -90, 0])
+        # reset_joints_left = np.deg2rad([320, -100, -50, -150, 50, 50])
+        # reset_joints_right = np.deg2rad([40, -70, 20, 20, -30, 340])
         reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
         curr_joints = env.get_obs()["joint_positions"]
         max_delta = (np.abs(curr_joints - reset_joints)).max()
@@ -144,7 +150,7 @@ def main(args):
                 usb_ports = glob.glob("/dev/serial/by-id/*")
                 print(f"Found {len(usb_ports)} ports")
                 if len(usb_ports) > 0:
-                    gello_port = usb_ports[0]
+                    gello_port = usb_ports[0] 
                     print(f"using port {gello_port}")
                 else:
                     raise ValueError(
@@ -157,7 +163,7 @@ def main(args):
             }
             if args.start_joints is None:
                 reset_joints = np.deg2rad(
-                    [90, -90, 90, -90, -90, 0]
+                    [-90, -90, -90, -90, 90, 0]
                 )  # Change this to your own reset joints for the starting position
             else:
                 reset_joints = np.array(args.start_joints)
@@ -233,6 +239,8 @@ def main(args):
             )
         return
 
+
+
     print(f"Start pos: {len(start_pos)}", f"Joints: {len(joints)}")
     assert len(start_pos) == len(
         joints
@@ -260,7 +268,15 @@ def main(args):
 
     joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
     action = _match_dofs(agent.act(obs), joints.size)
-    if (action - joints > 0.5).any():
+
+    diff = action - joints
+    bad = np.where(diff > 0.8)[0]
+    for j in bad:
+        print(
+            f"Joint [{j}], leader: {action[j]}, follower: {joints[j]}, diff: {action[j] - joints[j]}"
+        )
+        exit()
+    if (action - joints > 0.8).any():
         print("Action is too big")
 
         # print which joints are too big

@@ -6,13 +6,12 @@ import tyro
 from gello.robots.robot import BimanualRobot, PrintRobot
 from gello.zmq_core.robot_node import ZMQServerRobot
 
-
 @dataclass
 class Args:
     robot: str = "ur"
     robot_port: int = 6001
     hostname: str = "127.0.0.1"
-    robot_ip: str = "192.168.20.25"
+    robot_ip: str = "192.168.20.66"
 
 
 def launch_robot_server(args: Args):
@@ -85,9 +84,13 @@ def launch_robot_server(args: Args):
         elif args.robot == "bimanual_ur":
             from gello.robots.ur import URRobot
 
+            # from gello.robots.dynamixel import DynamixelRobot
+            
+
             # IP for the bimanual robot setup is hardcoded
-            _robot_l = URRobot(robot_ip="192.168.2.10")
-            _robot_r = URRobot(robot_ip="192.168.1.10")
+            # WE MUST CHANGE THIS WHEN WE USING THE BIMANUAL ROBOT  -BALRAJ
+            _robot_l = URRobot(robot_ip="192.168.20.66")
+            _robot_r = URRobot(robot_ip="192.168.20.65")
             robot = BimanualRobot(_robot_l, _robot_r)
         elif args.robot == "yam":
             from gello.robots.yam import YAMRobot

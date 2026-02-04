@@ -599,8 +599,8 @@ def main():
         driver = DynamixelDriver(ids, port="/dev/cu.usbserial-FT7WBMUB")
 
     # Test setting torque mode
-    driver.set_torque_mode(True)
-    driver.set_torque_mode(False)
+    # driver.set_torque_mode(True)
+    # driver.set_torque_mode(False)
 
     # Test reading the joint angles
     try:
