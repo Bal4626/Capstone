@@ -54,6 +54,7 @@ class Args:
     data_dir: str = "~/bc_data"
     bimanual: bool = False
     verbose: bool = False
+    delta_mode: bool = True
 
     def __post_init__(self):
         if self.start_joints is not None:
@@ -203,89 +204,96 @@ def main(args):
             raise ValueError("Invalid agent name")
 
     agent = instantiate_from_dict(agent_cfg)
-    # going to start position
-    print("Going to start position")
-    start_pos = agent.act(env.get_obs())
-    obs = env.get_obs()
-    #joints = obs["joint_positions"]
-    joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)  # (6,)
-    start_pos = _match_dofs(start_pos, joints.size)
 
-    # # Ensure numpy arrays
-    # joints = np.asarray(joints, dtype=float).reshape(-1)         # (6,)
-    # start_pos = np.asarray(start_pos, dtype=float).reshape(-1)    # (7,) currently
+    # Delta-mode teleop: capture master & slave zero at runtime and command deltas.
+    if args.delta_mode:
+        obs0 = env.get_obs()
+        slave_zero = np.asarray(obs0["joint_positions"], dtype=float).reshape(-1)
+        master_zero = _match_dofs(agent.act(obs0), slave_zero.size)
 
-    # # Drop gripper if present
-    # if start_pos.size == joints.size + 1:
-    #     start_pos = start_pos[:joints.size]
+        class DeltaBiasAgent:
+            def __init__(self, base_agent, master_bias, slave_bias):
+                self._base_agent = base_agent
+                self._master_bias = np.asarray(master_bias, dtype=float).reshape(-1)
+                self._slave_bias = np.asarray(slave_bias, dtype=float).reshape(-1)
+                assert (
+                    self._master_bias.size == self._slave_bias.size
+                ), "Master/slave DOF mismatch"
 
+            def act(self, obs):
+                master_now = _match_dofs(
+                    self._base_agent.act(obs), self._slave_bias.size
+                )
+                delta = master_now - self._master_bias
+                return self._slave_bias + delta
 
-    abs_deltas = np.abs(start_pos - joints)
-    id_max_joint_delta = np.argmax(abs_deltas)
-
-    max_joint_delta = 0.8
-    if abs_deltas[id_max_joint_delta] > max_joint_delta:
-        id_mask = abs_deltas > max_joint_delta
-        print()
-        ids = np.arange(len(id_mask))[id_mask]
-        for i, delta, joint, current_j in zip(
-            ids,
-            abs_deltas[id_mask],
-            start_pos[id_mask],
-            joints[id_mask],
-        ):
-            print(
-                f"joint[{i}]: \t delta: {delta:4.3f} , leader: \t{joint:4.3f} , follower: \t{current_j:4.3f}"
-            )
-        return
-
-
-
-    print(f"Start pos: {len(start_pos)}", f"Joints: {len(joints)}")
-    assert len(start_pos) == len(
-        joints
-    ), f"agent output dim = {len(start_pos)}, but env dim = {len(joints)}"
-
-    max_delta = 0.05
-    for _ in range(25):
+        agent = DeltaBiasAgent(agent, master_zero, slave_zero)
+        print("Delta teleop enabled: captured master/slave zeros and running in delta mode.")
+    else:
+        # Default absolute-start behaviour
+        print("Going to start position")
+        start_pos = agent.act(env.get_obs())
         obs = env.get_obs()
-        # command_joints = agent.act(obs)
-        # current_joints = obs["joint_positions"]
+        joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
+        start_pos = _match_dofs(start_pos, joints.size)
 
-        current_joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
-        command_joints = _match_dofs(agent.act(obs), current_joints.size)
+        abs_deltas = np.abs(start_pos - joints)
+        id_max_joint_delta = np.argmax(abs_deltas)
 
+        max_joint_delta = 0.8
+        if abs_deltas[id_max_joint_delta] > max_joint_delta:
+            id_mask = abs_deltas > max_joint_delta
+            print()
+            ids = np.arange(len(id_mask))[id_mask]
+            for i, delta, joint, current_j in zip(
+                ids,
+                abs_deltas[id_mask],
+                start_pos[id_mask],
+                joints[id_mask],
+            ):
+                print(
+                    f"joint[{i}]: \t delta: {delta:4.3f} , leader: \t{joint:4.3f} , follower: \t{current_j:4.3f}"
+                )
+            return
 
-        delta = command_joints - current_joints
-        max_joint_delta = np.abs(delta).max()
-        if max_joint_delta > max_delta:
-            delta = delta / max_joint_delta * max_delta
-        env.step(current_joints + delta)
+        print(f"Start pos: {len(start_pos)}", f"Joints: {len(joints)}")
+        assert len(start_pos) == len(
+            joints
+        ), f"agent output dim = {len(start_pos)}, but env dim = {len(joints)}"
 
-    obs = env.get_obs()
-    # joints = obs["joint_positions"]
-    # action = agent.act(obs)
+        max_delta = 0.05
+        for _ in range(25):
+            obs = env.get_obs()
+            current_joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
+            command_joints = _match_dofs(agent.act(obs), current_joints.size)
 
-    joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
-    action = _match_dofs(agent.act(obs), joints.size)
+            delta = command_joints - current_joints
+            max_joint_delta = np.abs(delta).max()
+            if max_joint_delta > max_delta:
+                delta = delta / max_joint_delta * max_delta
+            env.step(current_joints + delta)
 
-    diff = action - joints
-    bad = np.where(diff > 0.8)[0]
-    for j in bad:
-        print(
-            f"Joint [{j}], leader: {action[j]}, follower: {joints[j]}, diff: {action[j] - joints[j]}"
-        )
-        exit()
-    if (action - joints > 0.8).any():
-        print("Action is too big")
+        obs = env.get_obs()
+        joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
+        action = _match_dofs(agent.act(obs), joints.size)
 
-        # print which joints are too big
-        joint_index = np.where(action - joints > 0.8)
-        for j in joint_index:
+        diff = action - joints
+        bad = np.where(diff > 0.8)[0]
+        for j in bad:
             print(
                 f"Joint [{j}], leader: {action[j]}, follower: {joints[j]}, diff: {action[j] - joints[j]}"
             )
-        exit()
+            exit()
+        if (action - joints > 0.8).any():
+            print("Action is too big")
+
+            # print which joints are too big
+            joint_index = np.where(action - joints > 0.8)
+            for j in joint_index:
+                print(
+                    f"Joint [{j}], leader: {action[j]}, follower: {joints[j]}, diff: {action[j] - joints[j]}"
+                )
+            exit()
 
     from gello.utils.control_utils import SaveInterface, run_control_loop
 
