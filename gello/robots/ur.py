@@ -195,28 +195,28 @@ class URRobot(Robot):
             if not ok:
                 print("Still no RTDE control script – need to press PLAY on pendant / check program.")
                 return False
-                time.sleep(2)  # wait a bit before starting
+                # time.sleep(2)  # wait a bit before starting
 
-                try:
-                    result = self.dash.play()
-                    print("Dashboard play():", result)
-                except Exception as e:
-                    traceback.print_exc()
-                    print("Dashboard play failed:", e)
-                    print("Recreating control + dashboard objects and retrying play().")
-                    recreate_control()
-                    self.dash = DashboardClient(self.robot_ip)
-                    self.dash.connect()
-                    try:
-                        self.dash.closeSafetyPopup()
-                        self.dash.unlockProtectiveStop()
-                        time.sleep(0.5)
-                        result = self.dash.play()
-                        print("Dashboard play() retry:", result)
-                    except Exception as e2:
-                        print("Second play() failed:", e2)
-                        print("Manual pendant play may be required.")
-                        return False
+                # try:
+                #     result = self.dash.play()
+                #     print("Dashboard play():", result)
+                # except Exception as e:
+                #     traceback.print_exc()
+                #     print("Dashboard play failed:", e)
+                #     print("Recreating control + dashboard objects and retrying play().")
+                #     recreate_control()
+                #     self.dash = DashboardClient(self.robot_ip)
+                #     self.dash.connect()
+                #     try:
+                #         self.dash.closeSafetyPopup()
+                #         self.dash.unlockProtectiveStop()
+                #         time.sleep(0.5)
+                #         result = self.dash.play()
+                #         print("Dashboard play() retry:", result)
+                #     except Exception as e2:
+                #         print("Second play() failed:", e2)
+                #         print("Manual pendant play may be required.")
+                #         return False
 
             # Kick controller once
             q = self.r_inter.getActualQ()
