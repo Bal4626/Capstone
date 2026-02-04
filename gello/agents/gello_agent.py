@@ -213,12 +213,22 @@ print(config_dict)
 gripper_offsets = config_dict.get("gripper_offsets")
 
 left_offsets = list(config_dict["joint_offsets"])
-left_offsets[0] += np.pi
+left_offsets[0] += 0 #6
+left_offsets[1] += 0 #07
+left_offsets[2] += -2.296 #08
+left_offsets[3] += 0 #09
+left_offsets[4] += 3.5 #10
+left_offsets[0] += 0 #11
 
 
 right_offsets = list(config_dict["joint_offsets"])
-right_offsets[5] += np.pi
-right_offsets[0] -= np.pi
+
+right_offsets[0] -= 0 #0
+right_offsets[1] -= 0.8 #1
+right_offsets[2] += 2.419 #2
+right_offsets[3] += 0.0 #3
+right_offsets[4] -= 1.8 #4
+right_offsets[5] += 2.747  #5
 
 PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
     # xArm
@@ -303,15 +313,15 @@ PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
         #gripper_config=(7, 19, -22)
     ),
 
-    #left ur3e
+    #left ur3e joints 6 onwards
     "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0": DynamixelRobotConfig(
         joint_ids=(1, 2, 3, 4, 5, 6),
         # joint_offsets=tuple(
         #     i for i in config_dict["joint_offsets"]
         # ),
         joint_offsets=tuple(left_offsets),
-        #joint_signs=(1, 1, -1, 1, 1, 1),  # original
-        joint_signs=(1, 1, -1, 1, 1, 1),
+        joint_signs=(1, 1, -1, 1, 1, 1),  # original
+        #joint_signs=(1, 1, 1, 1, -1, 1),
         #gripper_config=(7, config_dict["gripper_offsets"][0],  config_dict["gripper_offsets"][1]),
         gripper_config =(7, gripper_offsets[0], gripper_offsets[1]) if gripper_offsets else None if gripper_offsets else None
         #gripper_config=(7, 19, -23)
@@ -327,9 +337,8 @@ PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
 
         joint_offsets=tuple(right_offsets),
 
-        joint_signs=(1, 1, -1, 1, 1, 1)
-,
-        #joint_signs=(1, 1, -1, 1, 1, 1),
+        #joint_signs=(1, -1, -1, -1, 1, 1),
+        joint_signs=(1, 1, -1, 1, 1, 1),
         #gripper_config=(7, config_dict["gripper_offsets"][0],  config_dict["gripper_offsets"][1]),
         #gripper_config=(7, 19, -22)
         gripper_config =(7, gripper_offsets[0], gripper_offsets[1]) if gripper_offsets else None if gripper_offsets else None
