@@ -142,6 +142,7 @@ def run_control_loop(
     save_interface: Optional[SaveInterface] = None,
     print_timing: bool = True,
     use_colors: bool = False,
+    force_control: bool = False
 ) -> None:
     """Run the main control loop.
 
@@ -193,90 +194,55 @@ def run_control_loop(
 
     #     obs = env.step(action)
 
-    #added this for torque haptic feedbackz
+    # Configure control mode
+    if force_control and hasattr(agent, '_robot'):
+        print("🔧 Switching GELLO to torque control mode...")
+        try:
+            agent._robot.set_current_control_mode()
+            print("✅ Torque control enabled")
+        except Exception as e:
+            print(f"⚠️ Failed to enable torque control: {e}")
+            force_control = False  # Fallback to position control
 
     try:
-        agent._robot.set_current_control_mode()
         while True:
             action = agent.act(obs)
             obs = env.step(action)
-            # obs = env.step(action[:n])
-            #added this for torque haptic feedback
-            tau_ext = obs["torques"]
-            print('F_ext',tau_ext)
-            haptic_torques = tau_ext #for sim
-            # haptic_torques = -tau_ext #for actual UR arm
-            print("Haptic torques:",haptic_torques)
 
-            # 6. Scale and clip
-            haptic_gain = 0.001  # Tune: 0.01–0.05 for 5V XL330s
-            joint_signs = np.array([1, 1, -1, 1, 1, 1])
-            scaled_torques = haptic_gain * haptic_torques * joint_signs
-            scaled_torques = np.clip(scaled_torques, -0.08, 0.08)  # Nm
-            print("scaled_torques",scaled_torques)
-            print("------")
+            if force_control:
+                
+                #added this for torque haptic feedback
+                tau_ext = obs["torques"]
+                haptic_torques = tau_ext
 
-            # 7. Send to GELLO (6 joints; gripper appended)
-            if hasattr(agent, 'set_agent_torque'):
-                try:
-                    scaled_torques = np.append(scaled_torques,0)
-                    agent.set_agent_torque(scaled_torques)
-                except Exception as e:
-                    print(f"⚠️ Torque command failed: {e}")
+                # 6. Scale and clip
+                haptic_gain = 1  # Tune: 0.01–0.05 for 5V XL330s
+                joint_signs = np.array([1, 1, -1, 1, 1, 1])
+                scaled_torques = haptic_gain * haptic_torques * joint_signs
+                scaled_torques = np.clip(scaled_torques, -0.08, 0.08)  # Nm
+                print("scaled_torques",np.round(scaled_torques,3))
+                print("------")
+
+                # 7. Send to GELLO (6 joints; gripper appended)
+                if hasattr(agent, 'set_agent_torque'):
+                    try:
+                        scaled_torques = np.append(scaled_torques,0)
+                        agent.set_agent_torque(scaled_torques)
+                    except Exception as e:
+                        print(f"⚠️ Torque command failed: {e}")
 
     except KeyboardInterrupt:
-        print("\n🛑 Shutting down haptics...")
-        # Zero torque before exit
-        if hasattr(agent, 'set_agent_torque'):
+        print("\n\n🛑 Shutting down...")
+    finally:
+        # Always return to safe position control mode on exit
+        if force_control and hasattr(agent, '_robot'):
+            print("🔧 Returning GELLO to position control mode...")
             try:
-                agent.set_agent_torque(np.zeros(len(agent._robot.joint_ids)))
-            except:
-                pass
-        agent._robot.set_position_control_mode()
-
-    # #added this for haptic feedback - impedence control
-    # try:
-    #     agent._robot.set_current_control_mode()
-    #     while True:
-    #         master_joints = agent._robot.get_joint_state()[:n]
-    #         master_velocites = agent._robot.get_joint_velocities()[:n]
-    #         obs = env.get_obs()
-
-    #         slave_joints = obs["joint_positions"]
-    #         slave_velocities = obs["joint_velocities"]
-
-    #         action = agent.act(obs)
-    #         env.step(action[:n])
-    #         # 6. Scale and clip
-    #         K = 0.01
-    #         B = 0.3*K
-    #         print("master joints",master_joints)
-    #         print("slave joints", slave_joints)
-    #         print("master velocities", master_velocites)
-    #         print("slave velocities", slave_velocities)
-    #         print("k_Term",K * (slave_joints-master_joints))
-    #         print("b_terrm",B * (slave_velocities-master_velocites))
-    #         haptic_torques = K * (slave_joints-master_joints) + B * (slave_velocities-master_velocites)
-    #         print("Haptic torques:",haptic_torques)
-    #         scaled_torques = np.clip(haptic_torques, -0.08, 0.08)  # Nm
-    #         print("scaled_torques",scaled_torques)
-    #         print("------")
-
-    #         # 7. Send to GELLO (6 joints; gripper appended)
-    #         if hasattr(agent, 'set_agent_torque'):
-    #             try:
-    #                 if n == 6:
-    #                     scaled_torques = np.append(scaled_torques,0)
-    #                 agent.set_agent_torque(scaled_torques)
-    #             except Exception as e:
-    #                 print(f"⚠️ Torque command failed: {e}")
-
-    # except KeyboardInterrupt:
-    #     print("\n🛑 Shutting down haptics...")
-    #     # Zero torque before exit
-    #     if hasattr(agent, 'set_agent_torque'):
-    #         try:
-    #             agent.set_agent_torque(np.zeros(len(agent._robot.joint_ids)))
-    #         except:
-    #             pass
-    #     agent._robot.set_position_control_mode()
+                # Zero torques first
+                if hasattr(agent, 'set_agent_torque'):
+                    agent.set_agent_torque(np.zeros(len(agent._robot.joint_ids)))
+                # Then switch mode
+                agent._robot.set_position_control_mode()
+                print("✅ Position control restored")
+            except Exception as e:
+                print(f"⚠️ Error during shutdown: {e}")

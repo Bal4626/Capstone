@@ -7,7 +7,7 @@ from gello.robots.robot import Robot
 class URRobot(Robot):
     """A class representing a UR robot."""
 
-    def __init__(self, robot_ip: str = "192.168.1.10", no_gripper: bool = True):
+    def __init__(self, robot_ip: str = "192.168.20.25", no_gripper: bool = False):
         import rtde_control
         import rtde_receive
 
@@ -19,18 +19,20 @@ class URRobot(Robot):
             print(robot_ip)
 
         self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
+
         if not no_gripper:
             from gello.robots.robotiq_gripper import RobotiqGripper
 
             self.gripper = RobotiqGripper()
             self.gripper.connect(hostname=robot_ip, port=63352)
-            print("gripper connected")
-            self.gripper.activate()
+            # print("gripper connected")
+            # self.gripper.activate()
 
-        [print("connect") for _ in range(4)]
+        [print("connect") for _ in range(   4)]
 
         self._free_drive = False
         self.robot.endFreedriveMode()
+        # self.robot.freedriveMode()
         self._use_gripper = not no_gripper
 
         #added this for haptic
@@ -168,7 +170,7 @@ class URRobot(Robot):
         p_tcp = Ts[-1][:3, 3]
         
         J = np.zeros((6, 6))
-        for i in range(6):
+        for i in range(6):  
             T_im1 = Ts[i]  # T_0^{i}
             z_im1 = T_im1[:3, 2]  # Z-axis of frame i (joint i+1 axis)
             p_im1 = T_im1[:3, 3]
@@ -194,110 +196,6 @@ class URRobot(Robot):
         ])
         return Ad_inv @ J_base
 
-    
-    # def get_jacobian(self, q:np.ndarray = None) -> np.ndarray:
-    #     """
-    #     DH_params: list of (a, alpha, d, theta_offset)
-    #     q: list of joint angles
-    #     returns: 6 x n Jacobian
-    #     """
-
-    #     if q is None:
-    #         q = self.get_joint_state()[:6]  # exclude gripper
-
-    #     #ur3e DH params (a, alpha, d, theta_offset)
-    #     DH_params = [
-    #         (0,        np.pi/2, 0.15185,    0),     # Joint 1
-    #         (-0.24355, 0,       0,          0),   # Joint 2
-    #         (-0.2132,  0,       0,          0),    # Joint 3
-    #         (0,        np.pi/2, 0.13105,    0),     # Joint 4
-    #         (0,       -np.pi/2, 0.08535,    0),    # Joint 5
-    #         (0,        0,       0.0921,     0)    # Joint 6
-    #     ]
-
-    #     # #ur5e DH params (a, alpha, d, theta_offset)
-    #     # DH_params = [
-    #     #     (0,        np.pi/2, 0.1625,    0),     # Joint 1
-    #     #     (-0.425,   0,       0,          0),   # Joint 2
-    #     #     (-0.3922,  0,       0,          0),    # Joint 3
-    #     #     (0,        np.pi/2, 0.1333,    0),     # Joint 4
-    #     #     (0,       -np.pi/2, 0.0997,    0),    # Joint 5
-    #     #     (0,        0,       0.0996,     0)    # Joint 6
-    #     # ]
-    #     n = len(q)
-    #     T = np.eye(4)
-    #     positions = [np.zeros(3)] #base origin
-    #     z_axes = [np.array([0,0,1])] #base z-axis
-
-    #     for i in range(n):
-    #         a, alpha, d, theta_offset = DH_params[i]
-    #         theta = q[i] + theta_offset
-    #         # DH transformation
-    #         Ti = np.array([
-    #             [np.cos(theta), -np.sin(theta)*np.cos(alpha), np.sin(theta)*np.sin(alpha), a*np.cos(theta)],
-    #             [np.sin(theta), np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), a*np.sin(theta)],
-    #             [0, np.sin(alpha), np.cos(alpha), d],
-    #             [0, 0, 0, 1]
-    #         ])
-    #         T = T @ Ti
-    #         positions.append(T[:3,3])
-    #         z_axes.append(T[:3,2])
-        
-    #     p_e = positions[-1]
-    #     J_v = []
-    #     J_w = []
-
-    #     for i in range(n):
-    #         Jv = np.cross(z_axes[i], p_e - positions[i])
-    #         Jw = z_axes[i]
-    #         J_v.append(Jv)
-    #         J_w.append(Jw)
-
-    #     J = np.vstack([np.array(J_v).T, np.array(J_w).T])
-    #     return J  # 6 x n
-    
-    # #added rotvec_to_matrix and get_base_forces to convert TCP frame force to base frame force, same as Jacobian base frame
-    # def _rotvec_to_matrix(self, rot_vec: np.ndarray) -> np.ndarray:
-    #     """Convert axis-angle (rotation vector) to rotation matrix."""
-    #     angle = np.linalg.norm(rot_vec)
-    #     if angle < 1e-8:
-    #         return np.eye(3)
-    #     axis = rot_vec / angle
-    #     x, y, z = axis
-    #     c = np.cos(angle)
-    #     s = np.sin(angle)
-    #     C = 1 - c
-    #     R = np.array([
-    #         [x*x*C + c,   x*y*C - z*s, x*z*C + y*s],
-    #         [y*x*C + z*s, y*y*C + c,   y*z*C - x*s],
-    #         [z*x*C - y*s, z*y*C + x*s, z*z*C + c  ]
-    #     ])
-    #     return R
-
-    # def get_base_forces(self) -> np.ndarray:
-    #     """
-    #     Get wrench (forces & torques) expressed in base frame.
-    #     Returns: [Fx, Fy, Fz, Mx, My, Mz] in base frame.
-    #     """
-    #     try:
-    #         wrench_tcp = self.get_forces()  # [Fx, Fy, Fz, Tx, Ty, Tz] in TCP
-    #         tcp_pose = np.array(self.r_inter.getActualTCPPose())     # [x, y, z, rx, ry, rz]
-
-    #         f_tcp = wrench_tcp[:3]
-    #         tau_tcp = wrench_tcp[3:]
-    #         p = tcp_pose[:3]  # TCP position in base frame
-
-    #         R_base_tcp = self._rotvec_to_matrix(tcp_pose[3:])
-
-    #         f_base = R_base_tcp @ f_tcp
-    #         tau_base = R_base_tcp @ tau_tcp + np.cross(p, f_base)
-
-    #         return np.concatenate([f_base, tau_base])
-    #     except Exception as e:
-    #         print(f"Error in get_base_forces: {e}")
-    #         return np.zeros(6)
-
-
     def get_external_joint_torques(self, q: np.ndarray = None) -> np.ndarray:
         """
         Estimate external joint torques from FT sensor.
@@ -306,14 +204,21 @@ class URRobot(Robot):
         if q is None:
             q = self.get_joint_state()[:6]
         
-        # Get wrench at TCP in base frame (correctly transformed)
-        F_tcp = self.get_forces()  # [fx, fy, fz, mx, my, mz] in base
-        
+        # Get wrench at TCP in tcp frame (correctly transformed)
+        F_tcp = self.get_forces()  # [fx, fy, fz, mx, my, mz] in tcp
+
+        # Apply scaling to physical forces
+        scale_matrix = np.diag([0.007, 0.007, 0.007, 0.007, 0.007, 0.007])  # diag([lin_scale, rot_scale])
+        F_tcp_scaled = F_tcp @ scale_matrix
+
+        # print("F before scale:",F_tcp)
+        # print("F after scale",F_tcp_scaled)
+
         # Get geometric Jacobian (6x6)
-        J_tcp = self.jacobian_tcp(q)  # maps joint vel to spatial twist at TCP
+        J_tcp = self.ur5e_jacobian_base(q)  # maps joint vel to spatial twist at TCP
         
         # External joint torques: τ = J^T @ F
-        tau_ext = J_tcp.T @ F_tcp
+        tau_ext = J_tcp.T @ F_tcp_scaled
         if self._tau_ext_filtered is None:
             self._tau_ext_filtered = tau_ext.copy()
         else:
@@ -333,6 +238,30 @@ class URRobot(Robot):
         else:
             vel = robot_joints_velocities
         return vel 
+    
+    #test convert TCP force to base force
+    def tcp_wrench_to_base(self,F_tcp, T_base_tcp):
+        """
+        Convert wrench from TCP frame to base frame.
+        F_tcp: [Fx, Fy, Fz, Tx, Ty, Tz] in TCP frame
+        T_base_tcp: 4x4 homogeneous transform from TCP to base
+        Returns: F_base in base frame
+        """
+        R = T_base_tcp[:3, :3]
+        p = T_base_tcp[:3, 3]
+
+        def skew(v):
+            return np.array([[0, -v[2], v[1]],
+                            [v[2], 0, -v[0]],
+                            [-v[1], v[0], 0]])
+
+        F = F_tcp[:3]
+        tau = F_tcp[3:]
+
+        F_base = R @ F
+        tau_base = R @ tau + skew(p) @ (R @ F)
+
+        return np.hstack([F_base, tau_base])
 
 
     def get_observations(self) -> Dict[str, np.ndarray]:
@@ -342,7 +271,8 @@ class URRobot(Robot):
 
         # gripper_pos = np.array([joints[-1]])
         forces = self.get_forces()
-        torques = self.get_external_joint_torques()
+        print("forces",np.round(forces,3))
+        torques = self.get_external_joint_torques(joints)
         velocities = self.get_joint_velocities()
         
         return {
@@ -355,17 +285,23 @@ class URRobot(Robot):
 
 def main():
     import time
-    robot_ip = "192.168.201.101"
-    ur = URRobot(robot_ip, no_gripper=True)
+    import numpy as np
+    robot_ip = "192.168.20.25"
+    ur = URRobot(robot_ip, no_gripper=False)
+    # ur.robot.zeroFtSensor()
     while True:
         q = ur.get_joint_state()[:6]
         F_tcp = ur.get_forces()
         tau_ext = ur.get_external_joint_torques()
-        print("F_tcp:",F_tcp)
-        print("F_base:",F_base)
-        print("ext torques:",tau_ext)
+        scale_matrix = np.diag([0.007, 0.007, 0.007, 0.001, 0.001, 0.001])  # diag([lin_scale, rot_scale])
+        F_tcp_scaled = F_tcp @ scale_matrix
+        print(ur.get_observations())
+        print("F before scale:", np.round(F_tcp, 3))
+        print("F after scale", np.round(F_tcp_scaled, 3))
+        print("Torques:", np.round(tau_ext, 3))
+
         print("--------")
-        time.sleep(1.5)
+        time.sleep(0.5)
 
 if __name__ == "__main__":
     main()

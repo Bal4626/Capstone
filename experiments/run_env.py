@@ -57,7 +57,8 @@ class Args:
 
     # Inside your existing @dataclass Args:
     simulate: bool = False
-    sim_force: Tuple[float, ...] = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)  # Fx, Fy, Fz, Mx, My, Mz
+    sim_force: Tuple[float, ...] = (1.0, 0.0, 0.0, 0.0, 0.0, 0.0)  # Fx, Fy, Fz, Mx, My, Mz
+    force_control: bool = False
 
     def __post_init__(self):
         if self.start_joints is not None:
@@ -71,7 +72,7 @@ def main(args):
         robot_client = SimulatedUR5(
             start_joints=args.start_joints,
             constant_force=np.array(args.sim_force),
-            use_gripper=True  # or True if you want 7-DOF
+            use_gripper=False  # or True if you want 7-DOF
         )
         camera_clients = {}
 
@@ -257,7 +258,7 @@ def main(args):
             data_dir=args.data_dir, agent_name=args.agent, expand_user=True
         )
 
-    run_control_loop(env, agent, save_interface, use_colors=True)
+    run_control_loop(env, agent, save_interface, use_colors=True, force_control=args.force_control)
 
 if __name__ == "__main__":
     main(tyro.cli(Args))

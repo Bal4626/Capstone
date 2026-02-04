@@ -67,8 +67,8 @@ def build_scene(robot_xml_path: str, gripper_xml_path: Optional[str] = None):
     # arena.worldbody.attach(arm_copy)
 
         # Add sensors at attachment_site
-    arena.sensor.add("force", site="attachment_site", name="ee_force")
-    arena.sensor.add("torque", site="attachment_site", name="ee_torque")
+    # arena.sensor.add("force", site="attachment_site", name="ee_force")
+    # arena.sensor.add("torque", site="attachment_site", name="ee_torque")
 
     # ===== ADD WALL HERE =====
     # Wall on the LEFT (positive Y direction in typical UR setup)
@@ -236,6 +236,12 @@ class MujocoRobotServer:
             ]
             ee_quat = np.zeros(4)
             mujoco.mju_mat2Quat(ee_quat, ee_mat)
+
+            #added this to test end effector tcp
+            ee_force = self._data.sensor("ee_force").data.copy()
+            ee_torque = self._data.sensor("ee_torque").data.copy()
+            ee_wrench = np.concatenate([ee_force, ee_torque])
+            
         except Exception:
             ee_pos = np.zeros(3)
             ee_quat = np.zeros(4)

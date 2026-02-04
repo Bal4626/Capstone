@@ -391,8 +391,7 @@ class DynamixelDriver(DynamixelDriverProtocol):
         torques_array = np.array(torques)
         # print("driver torques:",torques_array)
         currents = (self.torque_to_current_map * torques_array).tolist()
-        print("current",currents)
-        # print("current",currents)
+        print("current",np.round(currents,3))
         self.set_current(currents)
 
     def torque_enabled(self) -> bool:
