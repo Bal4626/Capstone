@@ -54,7 +54,7 @@ class Args:
     data_dir: str = "~/bc_data"
     bimanual: bool = False
     verbose: bool = False
-    delta_mode: bool = True
+    delta_mode: bool = True  # BALRAJ it automatically captures the delta at runtime
 
     def __post_init__(self):
         if self.start_joints is not None:
@@ -204,6 +204,9 @@ def main(args):
             raise ValueError("Invalid agent name")
 
     agent = instantiate_from_dict(agent_cfg)
+
+
+    ########################################################## BALRAJ
 
     # Delta-mode teleop: capture master & slave zero at runtime and command deltas.
     if args.delta_mode:

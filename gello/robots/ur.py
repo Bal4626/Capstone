@@ -39,6 +39,17 @@ class URRobot(Robot):
         self.robot.endFreedriveMode()
         self._use_gripper = not no_gripper
 
+    def _ensure_control(self) -> bool:
+        """Ensure RTDEControlInterface exists and is running."""
+        try:
+            if getattr(self, "robot", None) is None:
+                self.robot = rtde_control.RTDEControlInterface(self.robot_ip)
+            return True
+        except Exception as e:
+            print("Failed to (re)create RTDE control:", e)
+            self.robot = None
+            return False
+
     def num_dofs(self) -> int:
         """Get the number of joints of the robot.
 
@@ -73,6 +84,10 @@ class URRobot(Robot):
         return pos
 
     def command_joint_state(self, joint_state: np.ndarray) -> None:
+        # Ensure control object exists (may be None after failed recovery)
+        if not self._ensure_control():
+            return
+
         self.checkprotective_n_clear()
 
         """Command the leader robot to a given state.
@@ -127,57 +142,96 @@ class URRobot(Robot):
    
 
     def checkprotective_n_clear(self):
-        bits = self.r_inter.getSafetyStatusBits()
-        bit2 = (bits >> 2) & 1   # IS_PROTECTIVE_STOPPED
-        print(f"{bits:010b}")
-        print("bit2 =", bit2)
+        try:
+            bits = self.r_inter.getSafetyStatusBits()
+            bit2 = (bits >> 2) & 1   # IS_PROTECTIVE_STOPPED
+            print(f"{bits:010b}")
+            print("bit2 =", bit2)
 
-        if bit2 == 0:
-            return False  # no protective stop
+            if bit2 == 0:
+                return False  # no protective stop
 
-        # 1) Wait a bit after collision (UR requires ~5s)
-        time.sleep(5)
+            # 1) Wait a bit after collision (UR requires ~5s)
+            time.sleep(5)
 
-        # 2) Clear popup + unlock
-        self.dash.closeSafetyPopup()     # or closePopup()
-        self.dash.unlockProtectiveStop()
+            # 2) Clear popup + unlock
+            try:
+                self.dash.closeSafetyPopup()
+                self.dash.unlockProtectiveStop()
+            except Exception:
+                # reconnect dashboard if needed
+                try:
+                    self.dash.disconnect()
+                except Exception:
+                    pass
+                self.dash = DashboardClient(self.robot_ip)
+                self.dash.connect()
+                self.dash.closeSafetyPopup()
+                self.dash.unlockProtectiveStop()
 
-        # 3) (Optional) Wait until safety bit clears
-        while self.r_inter.isProtectiveStopped():
-            time.sleep(0.1)
+            # 3) Wait until safety bit clears (bounded)
+            for _ in range(100):  # 10s max
+                if not self.r_inter.isProtectiveStopped():
+                    break
+                time.sleep(0.1)
 
-        # 4) Start the program again if not running (ExternalControl / last URP)
-        if not self.dash.running():
-            # Now reupload RTDE script
+            # 4) Start the program again if not running (ExternalControl / last URP)
+            if not self.dash.running():
+                def recreate_control():
+                    try:
+                        if self.robot is not None:
+                            self.robot.stopScript()
+                    except Exception:
+                        pass
+                    time.sleep(0.2)
+                    try:
+                        self.robot = None
+                    except Exception:
+                        pass
+                    self.robot = rtde_control.RTDEControlInterface(self.robot_ip)
+
             ok = self.robot.reuploadScript()
             print("Reupload:", ok)
             if not ok:
                 print("Still no RTDE control script – need to press PLAY on pendant / check program.")
-                return
-            time.sleep(2)# wait a bit before starting
+                return False
+                time.sleep(2)  # wait a bit before starting
 
-            try:
-                result = self.dash.play()
-                print("Dashboard play():", result)
-            except Exception as e:
-                traceback.print_exc()
-                print("Dashboard play failed:", e)
-                print("lets recreate a control object.")
-                del self.robot
+                try:
+                    result = self.dash.play()
+                    print("Dashboard play():", result)
+                except Exception as e:
+                    traceback.print_exc()
+                    print("Dashboard play failed:", e)
+                    print("Recreating control + dashboard objects and retrying play().")
+                    recreate_control()
+                    self.dash = DashboardClient(self.robot_ip)
+                    self.dash.connect()
+                    try:
+                        self.dash.closeSafetyPopup()
+                        self.dash.unlockProtectiveStop()
+                        time.sleep(0.5)
+                        result = self.dash.play()
+                        print("Dashboard play() retry:", result)
+                    except Exception as e2:
+                        print("Second play() failed:", e2)
+                        print("Manual pendant play may be required.")
+                        return False
 
-                time.sleep(1)
-                self.robot = rtde_control.RTDEControlInterface(self.robot_ip)
-                print("recreated object")
-    
-        # Kick controller once
-        q = self.r_inter.getActualQ()
-        try:
-            self.robot.servoJ(q, 0.1, 0.1, 1/500, 0.2, 100)
+            # Kick controller once
+            q = self.r_inter.getActualQ()
+            if self._ensure_control():
+                try:
+                    self.robot.servoJ(q, 0.1, 0.1, 1/500, 0.2, 100)
+                except Exception as e:
+                    print("Recovery servo failed:", e)
+                    return False
+            print("Recovery complete.")
+            return True
         except Exception as e:
-            print("Recovery servo failed:", e)
-            return
-        print("Recovery complete.")
-        return True
+            traceback.print_exc()
+            print("Protective stop auto-recovery failed:", e)
+            return False
 
     
     def get_observations(self) -> Dict[str, np.ndarray]:
