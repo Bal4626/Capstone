@@ -119,6 +119,8 @@ def main(args):
         reset_joints_right = np.deg2rad([90, -90, 90, -90, -90, 0])
         reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
         curr_joints = env.get_obs()["joint_positions"]
+        print(curr_joints)
+        print(reset_joints)
         max_delta = (np.abs(curr_joints - reset_joints)).max()
         steps = min(int(max_delta / 0.01), 100)
 

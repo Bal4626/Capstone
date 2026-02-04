@@ -7,7 +7,7 @@ from gello.robots.robot import Robot
 class URRobot(Robot):
     """A class representing a UR robot."""
 
-    def __init__(self, robot_ip: str = "192.168.20.25", no_gripper: bool = False):
+    def __init__(self, robot_ip: str = "192.168.20.66", no_gripper: bool = True):
         import rtde_control
         import rtde_receive
 
