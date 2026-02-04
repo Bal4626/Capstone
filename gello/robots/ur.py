@@ -15,7 +15,7 @@ import traceback
 class URRobot(Robot):
     """A class representing a UR robot."""
 
-    def __init__(self, robot_ip: str = "", no_gripper: bool = True): #BALRAJ
+    def __init__(self, robot_ip: str = "", no_gripper: bool = False): #BALRAJ  Turn the gripper on or off. 
         self.robot_ip = robot_ip
 
         [print("in ur robot") for _ in range(4)]
