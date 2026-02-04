@@ -1,133 +1,65 @@
 import os
-from dataclasses import dataclass
-from typing import Dict, Optional, Sequence, Tuple
-
+from typing import Dict, Optional, List
 import numpy as np
 
 from gello.agents.agent import Agent
-from gello.robots.dynamixel import DynamixelRobot
-
-
-@dataclass
-class DynamixelRobotConfig:
-    joint_ids: Sequence[int]
-    """The joint ids of GELLO (not including the gripper). Usually (1, 2, 3 ...)."""
-
-    joint_offsets: Sequence[float]
-    """The joint offsets of GELLO. There needs to be a joint offset for each joint_id and should be a multiple of pi/2."""
-
-    joint_signs: Sequence[int]
-    """The joint signs of GELLO. There needs to be a joint sign for each joint_id and should be either 1 or -1.
-
-    This will be different for each arm design. Refernce the examples below for the correct signs for your robot.
-    """
-
-    gripper_config: Tuple[int, int, int]
-    """The gripper config of GELLO. This is a tuple of (gripper_joint_id, degrees in open_position, degrees in closed_position)."""
-
-    def __post_init__(self):
-        assert len(self.joint_ids) == len(self.joint_offsets)
-        assert len(self.joint_ids) == len(self.joint_signs)
-
-    def make_robot(
-        self, port: str = "/dev/ttyUSB0", start_joints: Optional[np.ndarray] = None
-    ) -> DynamixelRobot:
-        return DynamixelRobot(
-            joint_ids=self.joint_ids,
-            joint_offsets=list(self.joint_offsets),
-            real=True,
-            joint_signs=list(self.joint_signs),
-            port=port,
-            gripper_config=self.gripper_config,
-            start_joints=start_joints,
-        )
-
+from gello.robots.dynamixel import DynamixelRobot, DynamixelRobotConfig
+from gello.utils.kinematics import ScaledURKinematics
 
 PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
-    # xArm
-    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT3M9NVB-if00-port0": DynamixelRobotConfig(
-        joint_ids=(1, 2, 3, 4, 5, 6, 7),
-        joint_offsets=(
-            3 * np.pi / 2,
-            2 * np.pi / 2,
-            1 * np.pi / 2,
-            4 * np.pi / 2,
-            -2 * np.pi / 2 + 2 * np.pi,
-            3 * np.pi / 2,
-            4 * np.pi / 2,
-        ),
-        joint_signs=(1, -1, 1, 1, 1, -1, 1),
-        gripper_config=(8, 195, 152),
-    ),
-    # yam
-    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA2U4GA-if00-port0": DynamixelRobotConfig(
+    "/dev/ttyUSB0": DynamixelRobotConfig(
         joint_ids=(1, 2, 3, 4, 5, 6),
-        joint_offsets=[
-            0 * np.pi,
-            2 * np.pi / 2,
-            4 * np.pi / 2,
-            6 * np.pi / 6,
-            5 * np.pi / 3,
-            2 * np.pi / 2,
-        ],
-        joint_signs=(1, -1, -1, -1, 1, 1),
-        gripper_config=(
-            7,
-            -30,
-            24,
-        ),  # Reversed: now starts open (-30) and closes on press (24)
-    ),
-    # Left UR
-    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBEIA-if00-port0": DynamixelRobotConfig(
-        joint_ids=(1, 2, 3, 4, 5, 6),
-        joint_offsets=(
-            0,
-            1 * np.pi / 2 + np.pi,
-            np.pi / 2 + 0 * np.pi,
-            0 * np.pi + np.pi / 2,
-            np.pi - 2 * np.pi / 2,
-            -1 * np.pi / 2 + 2 * np.pi,
-        ),
         joint_signs=(1, 1, -1, 1, 1, 1),
-        gripper_config=(7, 20, -22),
-    ),
-    # Right UR
-    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBG6A-if00-port0": DynamixelRobotConfig(
-        joint_ids=(1, 2, 3, 4, 5, 6),
-        joint_offsets=(
-            np.pi + 0 * np.pi,
-            2 * np.pi + np.pi / 2,
-            2 * np.pi + np.pi / 2,
-            2 * np.pi + np.pi / 2,
-            1 * np.pi,
-            3 * np.pi / 2,
-        ),
-        joint_signs=(1, 1, -1, 1, 1, 1),
-        gripper_config=(7, 286, 248),
-    ),
+        servo_types=("XL330_M288",) * 6,  
+        #gripper_config=None
+        gripper_config=(7, 20, -30),
+        kinematics=ScaledURKinematics("ur5e", 0.518)
+    )
 }
 
-
 class GelloAgent(Agent):
-    def __init__(
-        self,
-        port: str,
-        dynamixel_config: Optional[DynamixelRobotConfig] = None,
-        start_joints: Optional[np.ndarray] = None,
-    ):
-        # Ensure start_joints is a numpy array if provided
-        if start_joints is not None and not isinstance(start_joints, np.ndarray):
-            start_joints = np.array(start_joints)
-        if dynamixel_config is not None:
-            self._robot = dynamixel_config.make_robot(
-                port=port, start_joints=start_joints
-            )
-        else:
-            assert os.path.exists(port), port
-            assert port in PORT_CONFIG_MAP, f"Port {port} not in config map"
+    """
+    Handles connection TCP re
+    Handles the force control
+    
+    """
+    def __init__(self, port: str,
+                 dynamixel_config: Optional[DynamixelRobotConfig]=None):
+        '''
+        Makes a dynamixel robot object using specified port or specified config.  
 
-            config = PORT_CONFIG_MAP[port]
-            self._robot = config.make_robot(port=port, start_joints=start_joints)
+        :param port: Dynamixel controller specific port name (or just "/dev/ttyUSB0").         
+        :param dynamixel_config: (Optional) The configuration of the physical robot for proper controls. 
+        '''
+   
+        assert os.path.exists(port), f"Port {port} not found among devices"
+        assert port in PORT_CONFIG_MAP or dynamixel_config is not None, f"Port {port} not in config map"
+        
+        print(f"Using cached configurations for {port}" if dynamixel_config is None \
+              else f"Using provided configurations {dynamixel_config}")
+        
+        config : DynamixelRobotConfig = PORT_CONFIG_MAP[port] if dynamixel_config is None else dynamixel_config 
+        
+        self._robot : DynamixelRobot = config.make_robot(port=port)
 
     def act(self, obs: Dict[str, np.ndarray]) -> np.ndarray:
+        """Returns joint positions and normalized gripper position (if any)."""
         return self._robot.get_joint_state()
+    
+    def move(self, joint_state: np.ndarray):
+        """ DOES NOT WORK. IN PROGRESS. Rotates joints"""
+        assert joint_state.size == self._robot.num_dofs()
+        
+        self._robot.set_torque_mode(True)
+        self._robot.command_joint_state(joint_state)
+                
+    def calibrate_arm(self, arm_pos: List[int, ]):
+        '''Calibrates the arm when all arm joints are moved to the positions provided. A 30s timeout exists.
+
+        :param arm_pos: arm joint values to align to, in degrees.
+        '''
+        if self._robot.is_calibrated():
+            print("Already calibrated")
+        else:
+            self._robot.calibrate(np.deg2rad(arm_pos))
+        

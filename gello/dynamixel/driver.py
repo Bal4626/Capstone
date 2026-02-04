@@ -35,17 +35,21 @@ CURRENT_CONTROL_MODE = 0
 POSITION_CONTROL_MODE = 3
 
 # Servo-specific mappings and limits
-TORQUE_TO_CURRENT_MAPPING = {
-    "XC330_T288_T": 1158.73,
-    "XM430_W210_T": 1000 / 2.69,
+TORQUE_TO_CURRENT_MAPPING = {   # mA/Nm; all estimated   
+    "XL330_M288": 400/0.35,     # from performance graph
+    "XL330_M077": 1470/0.215,   # from stall torque
 }
 
+STALL_TORQUE ={ # Nm
+    "XL330_M288": 0.52,
+    "XL330_M077": 0.215
+
+}
 # Servo specifications for current limits (in mA)
 SERVO_CURRENT_LIMITS = {
-    "XC330_T288_T": 1193,
-    "XM430_W210_T": 1263,
+    "XL330_M288": 1750,
+    "XL330_M077": 1750
 }
-
 
 class DynamixelDriverProtocol(Protocol):
     def set_joints(self, joint_angles: Sequence[float]):
@@ -198,9 +202,13 @@ class DynamixelDriver(DynamixelDriverProtocol):
             self.current_limits = np.array(
                 [SERVO_CURRENT_LIMITS[s] for s in self._servo_types]
             )
+            self.torque_limit = np.array(
+                [[STALL_TORQUE[s]] for s in self._servo_types]
+            )
         else:
             self.torque_to_current_map = None
             self.current_limits = None
+            self.torque_limit = None
 
         # Initialize with retry logic
         if not self._initialize_with_retries():

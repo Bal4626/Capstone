@@ -11,7 +11,7 @@ import tyro
 
 from gello.agents.agent import DummyAgent
 from gello.agents.gello_agent import GelloAgent
-from gello.agents.spacemouse_agent import SpacemouseAgent
+# from gello.agents.spacemouse_agent import SpacemouseAgent
 from gello.env import RobotEnv
 from gello.zmq_core.robot_node import ZMQClientRobot, ZMQServerRobot
 
@@ -21,7 +21,7 @@ class Args:
     hz: int = 100
 
     agent: str = "gello"
-    robot: str = "ur5"
+    robot: str = "sim_ur"
     gello_port: Optional[str] = None
     mock: bool = False
     verbose: bool = False
@@ -40,7 +40,7 @@ def launch_robot_server(port: int, args: Args):
         from gello.robots.sim_robot import MujocoRobotServer
 
         server = MujocoRobotServer(
-            xml_path=xml, gripper_xml_path=gripper_xml, port=port, host=args.hostname
+            xml_path=str(xml), gripper_xml_path=str(gripper_xml), port=port, host=args.hostname
         )
         server.serve()
     elif args.robot == "sim_panda":
@@ -52,7 +52,7 @@ def launch_robot_server(port: int, args: Args):
         xml = MENAGERIE_ROOT / "franka_emika_panda" / "panda.xml"
         gripper_xml = None
         server = MujocoRobotServer(
-            xml_path=xml, gripper_xml_path=gripper_xml, port=port, host=args.hostname
+            xml_path=str(xml), gripper_xml_path=gripper_xml, port=port, host=args.hostname
         )
         server.serve()
 
@@ -86,7 +86,6 @@ def start_robot_process(args: Args):
     atexit.register(kill_child_process, process)
     process.start()
 
-
 def main(args: Args):
     start_robot_process(args)
 
@@ -100,6 +99,7 @@ def main(args: Args):
             print(f"Found {len(usb_ports)} ports")
             if len(usb_ports) > 0:
                 gello_port = usb_ports[0]
+                gello_port = "/dev/ttyUSB0"
                 print(f"using port {gello_port}")
             else:
                 raise ValueError(
@@ -107,7 +107,7 @@ def main(args: Args):
                 )
         agent = GelloAgent(port=gello_port)
 
-        reset_joints = np.array([0, 0, 0, -np.pi, 0, np.pi, 0, 0])
+        reset_joints = np.array((0, -np.pi/2, np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2, 0))
         curr_joints = env.get_obs()["joint_positions"]
         if reset_joints.shape == curr_joints.shape:
             max_delta = (np.abs(curr_joints - reset_joints)).max()
@@ -121,8 +121,6 @@ def main(args: Args):
         from gello.agents.quest_agent import SingleArmQuestAgent
 
         agent = SingleArmQuestAgent(robot_type=args.robot, which_hand="l")
-    elif args.agent == "spacemouse":
-        agent = SpacemouseAgent(robot_type=args.robot, verbose=args.verbose)
     elif args.agent == "dummy" or args.agent == "none":
         agent = DummyAgent(num_dofs=robot_client.num_dofs())
     else:
