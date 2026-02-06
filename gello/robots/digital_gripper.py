@@ -2,7 +2,7 @@ import urx
 import time
 
 # Connect to UR robot
-rob = urx.Robot("192.168.20.101")  # Replace with your UR controller IP
+rob = urx.Robot("192.168.20.65")  # Replace with your UR controller IP
 
 for i in range(2):
 

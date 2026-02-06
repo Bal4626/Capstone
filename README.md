@@ -3,6 +3,15 @@
 <p align="center">
   <img src="imgs/title.png" />
 </p>
+###  COMMANDS
+
+source .venv/bin/activate
+python -m experiments.launch_nodes --robot=bimanual_ur
+
+
+python -m experiments.run_env --agent=gello --bimanual
+
+
 
 GELLO is a general, low-cost, and intuitive teleoperation framework for robot manipulators. This repository contains all the software components for GELLO. 
 
