@@ -1,8 +1,11 @@
+"""
+This experiments starts a MuJoCo server simulating a UR5e arm.
+
+Then it runs the control loop. 
+"""
+
 import atexit
 import signal
-import time
-
-from typing import Optional, Tuple
 
 import numpy as np
 from multiprocessing import Process
@@ -94,35 +97,36 @@ def start_mujoco_server(
     
 def main():
     # Starts simulation
-    print("Starting MuJoCo simulation server...")
     start_mujoco_server(body_xml=XML_DIR,
                         gripper_xml=GRIPPER_XML_DIR,
                         port=DEFAULT_ROBOT_PORT,
                         host=DEFAULT_ROBOT_HOST)
 
-    # To communicate/control simulation arm
-    print("Setting up robot command executor...")       
+    # To communicate/control simulation       
     robot_client = ZMQClientRobot(port=DEFAULT_ROBOT_PORT,      # ZMQClientRobot: Low-level network pipe
                                   host=DEFAULT_ROBOT_HOST)
     env = RobotEnv(robot_client, control_rate_hz=CONTROL_RATE)      # RobotEnv: High-level interface with timing + structure
 
     # Connects to GELLO arm
-    print("Setting up GELLO arm controller...")
     gello_port : str = "/dev/ttyUSB0"
     agent = GelloAgent(port=gello_port)
 
     # Set home position    
     home_joints = [180, -90, 90, -90, -90, 0]
-    home_joint_gripper = home_joints.append(0)
-
+    
+    # Add gripper position
+    home_joints.append(0)
+    
     # Home sim arm
-    env.step(np.deg2rad(np.array(home_joint_gripper))) 
+    env.step(np.deg2rad(np.array(home_joints))) 
 
     # Home GELLO arm
     agent.calibrate_arm(home_joints)
 
+    # Get observations
+    obs = env.get_obs()
+    
     # Run control loop
-    obs = {}
     while True:
         action = agent.act(obs)
         obs = env.step(action)

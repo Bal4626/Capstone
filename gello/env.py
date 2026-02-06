@@ -72,13 +72,17 @@ class RobotEnv:
         robot_obs = self._robot.get_observations()
         assert "joint_positions" in robot_obs
         assert "joint_velocities" in robot_obs
-        assert "ee_pos_quat" in robot_obs
-        assert "force" in robot_obs
+        assert "ee_pos_quat" in robot_obs        
         observations["joint_positions"] = robot_obs["joint_positions"]
         observations["joint_velocities"] = robot_obs["joint_velocities"]
         observations["ee_pos_quat"] = robot_obs["ee_pos_quat"]
         observations["gripper_position"] = robot_obs["gripper_position"]
-        observations["force"] = robot_obs["force"]
+        
+        if "force" in robot_obs:    
+            observations["force"] = robot_obs["force"]
+        else: 
+            pass
+
         return observations
 
 

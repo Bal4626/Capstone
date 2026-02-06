@@ -20,8 +20,7 @@ class DynamixelRobot(Robot):
         port: str = "/dev/ttyUSB0",
         baudrate: int = 57600,
         gripper_config: Optional[Tuple[int, float, float]] = None,
-        kinematics: Optional[ScaledURKinematics] = None 
-    ):  
+        ):  
         """Initialize Dynamixel robot.
         
         :param joint_ids: List of Dynamixel motor IDs for the arm joints
@@ -64,17 +63,11 @@ class DynamixelRobot(Robot):
             raise RuntimeError("More actuators found then initialized for. " \
             "Ensure gripper_config is provided if gripper is present")
         
-        self._kin_model = kinematics
         self._torque_on = False
         self._last_pos = None
         self._alpha = 0.99
         self._table_alr_printed = False
         self._is_calibrated = False
-
-        try:
-            self._tau_max = self._get_servo_torque_limit()
-        except:
-            self._tau_max = None
 
         self.set_current_control_mode()
 
@@ -93,22 +86,6 @@ class DynamixelRobot(Robot):
     def is_calibrated(self) -> bool:
         """Returns whether the arm has been calibrated."""
         return self._is_calibrated
-
-    def _get_servo_torque_limit(self) -> np.ndarray:
-        """Returns the max torque (in Nm) each arm servo can exert. Shape: (num_dof,)"""
-        
-        if isinstance(self._driver, FakeDynamixelDriver):
-            raise RuntimeError("No torque limit for a fake driver")
-        
-        if self._driver.torque_limit is None:
-            raise RuntimeError("Torque limits not configured. " \
-            "Initialize DynamixelRobot with servo_types parameter.") 
-        
-        torque_limits = np.array(self._driver.torque_limit[:self.num_dofs()])
-
-        assert torque_limits.shape == (self.num_dofs(), 1)
-
-        return torque_limits
 
     def _smooth(self, positions) -> np.ndarray:
         """Apply exponential smoothing to positions."""
@@ -360,59 +337,74 @@ class DynamixelRobot(Robot):
         print(joint_str + " | " + gripper_str, end="\r")
 
 
-# FORCE CONTROL METHODS
+    # FORCE CONTROL METHODS
+    #TODO - create a kinematics class to take in
+    def initialize_force(self, kinematics: ScaledURKinematics):
+        self._kin_model = kinematics
+        self._tau_max = self._get_servo_torque_limit()
 
-    def get_torque_for_wrench(self, wrench: np.ndarray) -> np.ndarray:
-        """
-        Calculates the torque required at each actuator to generate a wrench at the TCP (in base coordinate system).
+    def _get_servo_torque_limit(self) -> np.ndarray:
+        """Returns the max torque (in Nm) each arm servo can exert. Shape: (num_dof,)"""
         
-        Note: The wrench is BY the environment ON the end-effector.
-        """
-        if len(wrench) != 6:
-            raise ValueError("Invalid input. wrench should be of len 6.")
+        if isinstance(self._driver, FakeDynamixelDriver):
+            raise RuntimeError("No torque limit for a fake driver")
         
-        if self._kin_model == None:
-            raise RuntimeError("Kinematic model required to find torque. " \
-            "Initialize Dynamixel robot with kin_model parameter")
-
-        q = self.get_joint_state_arm()
-        J = self._kin_model.get_jacobian_TCP(q)
-        r = J.T @ wrench
-
-        assert len(r) == 6
-
-        return r 
-
-    def get_attentuated_torque_for_wrench(self, wrench: np.ndarray) -> dict: 
-        """Gets a scaled down wrench that is producable by the robot. 
-
-        The factor, s, is such that τ = Jᵀ (s * f_desired) satisfies |τ| ≤ τ_max where τ_max max torque of each servo."""
+        if self._driver.torque_limit is None:
+            raise RuntimeError("Torque limits not configured. " \
+            "Initialize DynamixelRobot with servo_types parameter.") 
         
+        torque_limits = np.array(self._driver.torque_limit[:self.num_dofs()])
+        assert torque_limits.shape == (self.num_dofs(), 1)
+
+        return torque_limits
+
+    
+    #TODO - singularity 
+    def set_wrench(self, wrench: np.ndarray):
+        """Tries to set wrench"""
+
+        # validate
         if self._kin_model is None:
-            raise RuntimeError("Getting wrench limit requires kinematic model. " \
+            raise RuntimeError("Getting wrench limit requires kinematic model which is not initialized. " \
             "Initialize DynamixelRobot with kin_model parameter.")    
 
         if self._tau_max is None:
-            raise RuntimeError("Max wrench not set, cannot find attentuation factor.")
+            raise RuntimeError("Max torque is not set, cannot find attentuation factor.")
 
-        tau_req = self.get_torque_for_wrench(wrench)
+        if len(wrench) != 6:
+            raise ValueError("Invalid input. wrench should be of len 6.")
         
-        if len(self._tau_max) != len(tau_req):
-            raise RuntimeError("Implementation error. Both lengths should match")
+        #
+        self.set_current_control_mode()
+        out = self._get_attentuated_torque_for_wrench(wrench)
+        factor, torque = out["factor"], out["torque"]     
+        print()
+
+        pass
+    
+    def _get_attentuated_torque_for_wrench(self, wrench: np.ndarray) -> dict: 
+        """Gets a scaled down wrench that is producable by the robot and the scale factor"""
         
+        # finds theoretical required torque
+        q = self.get_joint_state_arm()
+        assert self._kin_model is not None
+        J = self._kin_model.get_jacobian_TCP(q)
+        tau_req = J.T @ wrench
+        assert self._tau_max is not None
+        assert len(self._tau_max) == len(tau_req)
+
+        # scale torque down for it to be produceable 
         with np.errstate(divide='ignore', invalid='ignore'):    # to suppress tau_max / 0 = inf and 0/0 errors
             scales = self._tau_max / np.abs(tau_req)
             scales = np.where(np.abs(tau_req) < 1e-8, np.inf, scales)   # so that unactiviated joints (0) wiil not limit scaling
-        
-        s = np.min(scales)
-        
+        s = np.min(scales)      # s, is such that τ = Jᵀ (s * f_desired) satisfies |τ| ≤ τ_max where τ_max max torque of each servo.
         factor = min(float(s), 1.0) if np.isfinite(s) else 1.0
-    
         tau_atten = tau_req * factor 
 
+        # return dict
         return {
             "factor": factor,
-            "tau": tau_atten  
+            "torque": tau_atten  
         }
 
     def set_torque(self, torque: np.ndarray):
@@ -436,9 +428,6 @@ class DynamixelRobot(Robot):
         self._driver.set_operating_mode(CURRENT_CONTROL_MODE)
         self._driver.set_torque_mode(True)           # re-enable torque in current mode
 
-    def set_torque_from_wrench(self, wrench: np.ndarray):
-        self.set_current_control_mode()
-        
 
 
 
@@ -516,5 +505,4 @@ class DynamixelRobotConfig:
             port=port,
             gripper_config=self.gripper_config,
             servo_types=self.servo_types,
-            kinematics=self.kinematics
         )

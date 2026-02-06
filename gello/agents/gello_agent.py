@@ -44,6 +44,12 @@ class GelloAgent(Agent):
 
     def act(self, obs: Dict[str, np.ndarray]) -> np.ndarray:
         """Returns joint positions and normalized gripper position (if any)."""
+
+        if "wrench" in obs:
+            wrench = obs["wrench"]
+            print(f"got {wrench}")
+        else:
+            print("alert: [wrench] key not in obs dict, cannot do perform force control")
         return self._robot.get_joint_state()
     
     def move(self, joint_state: np.ndarray):
