@@ -3,26 +3,34 @@ from typing import Dict
 import numpy as np
 
 from gello.robots.robot import Robot
+import rtde_control
+import rtde_receive
+# import dashboard_client
+from dashboard_client import DashboardClient
+import time
+from gello.robots.robotiq_gripper import RobotiqGripper
+import traceback
 
 class URRobot(Robot):
     """A class representing a UR robot."""
 
-    def __init__(self, robot_ip: str = "192.168.20.66", no_gripper: bool = True):
-        import rtde_control
-        import rtde_receive
+    def __init__(self, robot_ip: str = "", no_gripper: bool = False): #BALRAJ  Turn the gripper on or off. 
+        self.robot_ip = robot_ip
 
         [print("in ur robot") for _ in range(4)]
         try:
-            self.robot = rtde_control.RTDEControlInterface(robot_ip)
+            self.robot = rtde_control.RTDEControlInterface(self.robot_ip)
+            self.r_inter = rtde_receive.RTDEReceiveInterface(self.robot_ip)
+            self.dash = DashboardClient(self.robot_ip)
+            self.dash.connect()
         except Exception as e:
             print(e)
             print(robot_ip)
-
+        # ACCEPTING BOTH CHANGES, WILL FACE AN ERROR ALONG THESE LINES
         self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
 
+            print(self.robot_ip)
         if not no_gripper:
-            from gello.robots.robotiq_gripper import RobotiqGripper
-
             self.gripper = RobotiqGripper()
             self.gripper.connect(hostname=robot_ip, port=63352)
             # print("gripper connected")
@@ -46,6 +54,17 @@ class URRobot(Robot):
         self._tau_ext_filtered = None
         self._alpha = 0.8  # 0 = more smoothing
         
+    def _ensure_control(self) -> bool:
+        """Ensure RTDEControlInterface exists and is running."""
+        try:
+            if getattr(self, "robot", None) is None:
+                self.robot = rtde_control.RTDEControlInterface(self.robot_ip)
+            return True
+        except Exception as e:
+            print("Failed to (re)create RTDE control:", e)
+            self.robot = None
+            return False
+
     def num_dofs(self) -> int:
         """Get the number of joints of the robot.
 
@@ -58,6 +77,7 @@ class URRobot(Robot):
 
     def _get_gripper_pos(self) -> float:
         import time
+
 
         time.sleep(0.01)
         gripper_pos = self.gripper.get_current_position()
@@ -79,6 +99,12 @@ class URRobot(Robot):
         return pos
 
     def command_joint_state(self, joint_state: np.ndarray) -> None:
+        # Ensure control object exists (may be None after failed recovery)
+        if not self._ensure_control():
+            return
+
+        self.checkprotective_n_clear()
+
         """Command the leader robot to a given state.
 
         Args:
@@ -91,14 +117,21 @@ class URRobot(Robot):
         gain = 100
 
         robot_joints = joint_state[:6]
+        print("aaa")
         t_start = self.robot.initPeriod()
-        self.robot.servoJ(
-            robot_joints, velocity, acceleration, dt, lookahead_time, gain
-        )
+        print("bbb")
+        try:
+            self.robot.servoJ(robot_joints, velocity, acceleration, dt, lookahead_time, gain)
+        except:
+            print("ServoJ failed")
+        print("ccc")
         if self._use_gripper:
             gripper_pos = joint_state[-1] * 255
             self.gripper.move(gripper_pos, 255, 10)
+        print("ddd")
+        
         self.robot.waitPeriod(t_start)
+        print("eee")
 
     def freedrive_enabled(self) -> bool:
         """Check if the robot is in freedrive mode.
@@ -121,6 +154,7 @@ class URRobot(Robot):
             self._free_drive = False
             self.robot.endFreedriveMode()
 
+    #JUNSIANG HAPTIC IMPLEMENTATION BELOW
     def get_forces(self) -> np.ndarray:
         """Get the current TCP forces and torques from the UR5's wrist sensor.
         
@@ -263,7 +297,102 @@ class URRobot(Robot):
 
         return np.hstack([F_base, tau_base])
 
+    # JUNSIANG's haptic is above
+   
+    # BALRAJ's hit and upload is below
+    def checkprotective_n_clear(self):
+        try:
+            bits = self.r_inter.getSafetyStatusBits()
+            bit2 = (bits >> 2) & 1   # IS_PROTECTIVE_STOPPED
+            print(f"{bits:010b}")
+            print("bit2 =", bit2)
 
+            if bit2 == 0:
+                return False  # no protective stop
+
+            # 1) Wait a bit after collision (UR requires ~5s)
+            time.sleep(5)
+
+            # 2) Clear popup + unlock
+            try:
+                self.dash.closeSafetyPopup()
+                self.dash.unlockProtectiveStop()
+            except Exception:
+                # reconnect dashboard if needed
+                try:
+                    self.dash.disconnect()
+                except Exception:
+                    pass
+                self.dash = DashboardClient(self.robot_ip)
+                self.dash.connect()
+                self.dash.closeSafetyPopup()
+                self.dash.unlockProtectiveStop()
+
+            # 3) Wait until safety bit clears (bounded)
+            for _ in range(100):  # 10s max
+                if not self.r_inter.isProtectiveStopped():
+                    break
+                time.sleep(0.1)
+
+            # 4) Start the program again if not running (ExternalControl / last URP)
+            if not self.dash.running():
+                def recreate_control():
+                    try:
+                        if self.robot is not None:
+                            self.robot.stopScript()
+                    except Exception:
+                        pass
+                    time.sleep(0.2)
+                    try:
+                        self.robot = None
+                    except Exception:
+                        pass
+                    self.robot = rtde_control.RTDEControlInterface(self.robot_ip)
+
+            ok = self.robot.reuploadScript()
+            print("Reupload:", ok)
+            if not ok:
+                print("Still no RTDE control script – need to press PLAY on pendant / check program.")
+                return False
+                # time.sleep(2)  # wait a bit before starting
+
+                # try:
+                #     result = self.dash.play()
+                #     print("Dashboard play():", result)
+                # except Exception as e:
+                #     traceback.print_exc()
+                #     print("Dashboard play failed:", e)
+                #     print("Recreating control + dashboard objects and retrying play().")
+                #     recreate_control()
+                #     self.dash = DashboardClient(self.robot_ip)
+                #     self.dash.connect()
+                #     try:
+                #         self.dash.closeSafetyPopup()
+                #         self.dash.unlockProtectiveStop()
+                #         time.sleep(0.5)
+                #         result = self.dash.play()
+                #         print("Dashboard play() retry:", result)
+                #     except Exception as e2:
+                #         print("Second play() failed:", e2)
+                #         print("Manual pendant play may be required.")
+                #         return False
+
+            # Kick controller once
+            q = self.r_inter.getActualQ()
+            if self._ensure_control():
+                try:
+                    self.robot.servoJ(q, 0.1, 0.1, 1/500, 0.2, 100)
+                except Exception as e:
+                    print("Recovery servo failed:", e)
+                    return False
+            print("Recovery complete.")
+            return True
+        except Exception as e:
+            traceback.print_exc()
+            print("Protective stop auto-recovery failed:", e)
+            return False
+
+    #BALRAJ PROTECTIVE STOP WORKAROUND ABOVE
     def get_observations(self) -> Dict[str, np.ndarray]:
         joints = self.get_joint_state()
         # print("ur5 joints:", joints) # we added this line
@@ -275,6 +404,9 @@ class URRobot(Robot):
         torques = self.get_external_joint_torques(joints)
         velocities = self.get_joint_velocities()
         
+        gripper_pos = np.array([joints[-1]]) #cannot guarantee it is gripper, above gripper pos was commented out because junsiang discovered this
+        self.checkprotective_n_clear()
+    
         return {
             "joint_positions": joints,
             "joint_velocities": velocities,
@@ -284,6 +416,7 @@ class URRobot(Robot):
         }
 
 def main():
+    # haptic below
     import time
     import numpy as np
     robot_ip = "192.168.20.25"
@@ -299,9 +432,17 @@ def main():
         print("F before scale:", np.round(F_tcp, 3))
         print("F after scale", np.round(F_tcp_scaled, 3))
         print("Torques:", np.round(tau_ext, 3))
+    # check protective below
+    print("Testing UR Robot")
+    robot_ip = "192.168.20.25"
+    ur = URRobot(robot_ip, no_gripper=True)
+    print(ur)
+    ur.set_freedrive_mode(True)
+    print(ur.get_observations())
 
         print("--------")
         time.sleep(0.5)
+
 
 if __name__ == "__main__":
     main()

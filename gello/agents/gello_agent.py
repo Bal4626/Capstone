@@ -55,19 +55,62 @@ class DynamixelRobotConfig:
 
 args = Args()
 config_dict = get_config(args)
+print(config_dict)
 gripper_offsets = config_dict.get("gripper_offsets")
-gripper_config = (7, gripper_offsets[0], gripper_offsets[1]) if gripper_offsets else None
+
+left_offsets = list(config_dict["joint_offsets"])
+# left_offsets[0] += 0 #6
+# left_offsets[1] += 0 #07
+# left_offsets[2] += -2.296 #08
+# left_offsets[3] += 0 #09
+# left_offsets[4] += 3.5 #10
+# left_offsets[0] += 0 #11
+
+
+right_offsets = list(config_dict["joint_offsets"])
+
+# right_offsets[0] -= 0 #0
+# right_offsets[1] -= 0.8 #1
+# right_offsets[2] += 2.419 #2
+# right_offsets[3] += 0.0 #3
+# right_offsets[4] -= 1.8 #4
+# right_offsets[5] += 2.747  #5
 
 PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
     #ur3e left labeled L
     "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0": DynamixelRobotConfig(
         joint_ids=(1, 2, 3, 4, 5, 6),
-        joint_offsets=tuple(i for i in config_dict["joint_offsets"]),
+        joint_offsets=[
+            0 * np.pi,
+            2 * np.pi / 2,
+            4 * np.pi / 2,
+            6 * np.pi / 6,
+            5 * np.pi / 3,
+            2 * np.pi / 2,
+        ],
+        joint_signs=(1, -1, -1, -1, 1, 1),
+        gripper_config=(
+            7,
+            -30,
+            24,
+        ),  # Reversed: now starts open (-30) and closes on press (24)
+    ),
+    # Left UR5
+    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBEIA-if00-port0": DynamixelRobotConfig(
+        joint_ids=(1, 2, 3, 4, 5, 6),
+        joint_offsets=(
+            0,
+            1 * np.pi / 2 + np.pi,
+            np.pi / 2 + 0 * np.pi,
+            0 * np.pi + np.pi / 2,
+            np.pi - 2 * np.pi / 2,
+            -1 * np.pi / 2 + 2 * np.pi,
+        ),
         joint_signs=(1, 1, -1, 1, 1, 1),
         gripper_config = gripper_config
     ),
-    #ur3e right 
-    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0": DynamixelRobotConfig(
+    # Right UR5
+    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBG6A-if00-port0": DynamixelRobotConfig(
         joint_ids=(1, 2, 3, 4, 5, 6),
         joint_offsets=tuple(i for i in config_dict["joint_offsets"]),
         joint_signs=(1, 1, -1, 1, 1, 1),
@@ -77,13 +120,50 @@ PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
         joint_ids=(1, 2, 3, 4, 5, 6),
         joint_offsets=tuple(i for i in config_dict["joint_offsets"]),
         joint_signs=(1, 1, -1, 1, 1, 1),
-        gripper_config = gripper_config
+        # gripper_config=(7, config_dict["gripper_offsets"][0],  config_dict["gripper_offsets"][1]),
+        gripper_config =(7, gripper_offsets[0], gripper_offsets[1]) if gripper_offsets else None if gripper_offsets else None
+        #gripper_config=(7, 19, -23)
     ),
     "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5I37-if00-port0": DynamixelRobotConfig(
         joint_ids=(1, 2, 3, 4, 5, 6),
-        joint_offsets=tuple(i for i in config_dict["joint_offsets"]),
+        joint_offsets=tuple(
+            i for i in config_dict["joint_offsets"]
+        ),
+        joint_signs=(1, -1, 1, -1, -1, 1),
+        # gripper_config=(7, config_dict["gripper_offsets"][0],  config_dict["gripper_offsets"][1]),
+        gripper_config =(7, gripper_offsets[0], gripper_offsets[1]) if gripper_offsets else None if gripper_offsets else None
+        #gripper_config=(7, 19, -22)
+    ),
+
+    #left ur3e joints 6 onwards
+    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0": DynamixelRobotConfig(
+        joint_ids=(1, 2, 3, 4, 5, 6),
+        # joint_offsets=tuple(
+        #     i for i in config_dict["joint_offsets"]
+        # ),
+        joint_offsets=tuple(left_offsets),
+        joint_signs=(1, 1, -1, 1, 1, 1),  # original
+        #joint_signs=(1, 1, 1, 1, -1, 1),
+        #gripper_config=(7, config_dict["gripper_offsets"][0],  config_dict["gripper_offsets"][1]),
+        gripper_config =(7, gripper_offsets[0], gripper_offsets[1]) if gripper_offsets else None if gripper_offsets else None
+        #gripper_config=(7, 19, -23)
+    ),
+    #right ur3e
+    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0": DynamixelRobotConfig(
+        joint_ids=(1, 2, 3, 4, 5, 6),
+        # joint_offsets=tuple(
+        #     i for i in config_dict["joint_offsets"]
+        # ),
+
+
+
+        joint_offsets=tuple(right_offsets),
+
+        #joint_signs=(1, -1, -1, -1, 1, 1),
         joint_signs=(1, 1, -1, 1, 1, 1),
-        gripper_config = gripper_config
+        #gripper_config=(7, config_dict["gripper_offsets"][0],  config_dict["gripper_offsets"][1]),
+        #gripper_config=(7, 19, -22)
+        gripper_config =(7, gripper_offsets[0], gripper_offsets[1]) if gripper_offsets else None if gripper_offsets else None
     )
 }
 

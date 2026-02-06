@@ -6,17 +6,19 @@ import tyro
 from gello.robots.robot import BimanualRobot, PrintRobot
 from gello.zmq_core.robot_node import ZMQServerRobot
 
-
 @dataclass
 class Args:
-    robot: str = "xarm"
+    robot: str = "ur"
     robot_port: int = 6001
     hostname: str = "127.0.0.1"
-    robot_ip: str = "192.168.20.65"
+    robot_ip: str = "192.168.20.66"
 
 
 def launch_robot_server(args: Args):
-    port = args.robot_port
+    port = args.robot_port  
+    print(port)
+    print(args.robot_ip)
+    print("aaa")
     if args.robot == "sim_ur":
         MENAGERIE_ROOT: Path = (
             Path(__file__).parent.parent / "third_party" / "mujoco_menagerie"
@@ -32,14 +34,23 @@ def launch_robot_server(args: Args):
         server.serve()
 
     else:
-        if args.robot == "ur":
+        if args.robot == "xarm":
+            from gello.robots.xarm_robot import XArmRobot
+
+            robot = XArmRobot(ip=args.robot_ip)
+        elif args.robot == "ur":
+            print("zzz")
             from gello.robots.ur import URRobot
             print(args.robot_ip)
             robot = URRobot(robot_ip=args.robot_ip)
         elif args.robot == "bimanual_ur":
             from gello.robots.ur import URRobot
 
+            # from gello.robots.dynamixel import DynamixelRobot
+            
+
             # IP for the bimanual robot setup is hardcoded
+            # WE MUST CHANGE THIS WHEN WE USING THE BIMANUAL ROBOT  -BALRAJ
             _robot_l = URRobot(robot_ip="192.168.20.66")
             _robot_r = URRobot(robot_ip="192.168.20.65")
             robot = BimanualRobot(_robot_l, _robot_r)
@@ -54,8 +65,11 @@ def launch_robot_server(args: Args):
 
 
 def main(args):
+    print("xxx")
     launch_robot_server(args)
 
 
 if __name__ == "__main__":
+
+    print("yyy")
     main(tyro.cli(Args))

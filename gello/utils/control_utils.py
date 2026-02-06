@@ -12,8 +12,21 @@ from gello.env import RobotEnv
 
 # Import the new force feedback module
 from gello.utils.force_feedback import force_feedback
+ 
+DEFAULT_MAX_JOINT_DELTA = 1.0
 
 DEFAULT_MAX_JOINT_DELTA = 1.0
+
+def _match_action_to_env(action: Any, env: RobotEnv) -> np.ndarray:
+    """Ensure action dimensionality matches the robot DOFs (drop extra gripper if present)."""
+    target_dofs = env.robot().num_dofs()
+    arr = np.asarray(action, dtype=float).reshape(-1)
+    if arr.size > target_dofs:
+        arr = arr[:target_dofs]
+    elif arr.size < target_dofs:
+        arr = np.pad(arr, (0, target_dofs - arr.size))
+    return arr
+
 
 def move_to_start_position(
     env: RobotEnv, agent: Agent, max_delta: float = 1.0, steps: int = 25
@@ -30,9 +43,9 @@ def move_to_start_position(
         bool: True if successful, False if position too far
     """
     print("Going to start position")
-    start_pos = agent.act(env.get_obs())
+    start_pos = _match_action_to_env(agent.act(env.get_obs()), env)
     obs = env.get_obs()
-    joints = obs["joint_positions"]
+    joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
 
     abs_deltas = np.abs(start_pos - joints)
     id_max_joint_delta = np.argmax(abs_deltas)
@@ -60,8 +73,8 @@ def move_to_start_position(
 
     for _ in range(steps):
         obs = env.get_obs()
-        command_joints = agent.act(obs)
-        current_joints = obs["joint_positions"]
+        command_joints = _match_action_to_env(agent.act(obs), env)
+        current_joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
         delta = command_joints - current_joints
         max_joint_delta = np.abs(delta).max()
         if max_joint_delta > max_delta:
@@ -73,6 +86,7 @@ def move_to_start_position(
 
 class SaveInterface:
     """Handles keyboard-based data saving interface."""
+    
 
     def __init__(
         self,
@@ -93,6 +107,9 @@ class SaveInterface:
         self.data_dir = Path(data_dir).expanduser() if expand_user else Path(data_dir)
         self.agent_name = agent_name
         self.save_path: Optional[Path] = None
+
+        self.dash = dashboard_client.DashboardClient(robot_ip)
+        self.dash.connect()
 
         print("Save interface enabled. Use keyboard controls:")
         print("  S: Start recording")
@@ -225,3 +242,14 @@ def run_control_loop(
                     print("✅ Position control restored")
                 except Exception as e:
                     print(f"⚠️ Error during shutdown: {e}")
+#         action = _match_action_to_env(agent.act(obs), env)
+#         # action = agent.act(obs)
+
+#         # Handle save interface
+#         if save_interface is not None:
+#             result = save_interface.update(obs, action)
+#             if result == "quit":
+#                 break
+
+#         obs = env.step(action)     #BALRAJ - drop gripper action
+#         # print("AAA")
