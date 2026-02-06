@@ -44,9 +44,9 @@ class Args:
     wrist_camera_port: int = 5000
     base_camera_port: int = 5001
     hostname: str = "127.0.0.1"
-    robot_type: str = None  # only needed for quest agent or spacemouse agent
+    robot_type: Optional[str] = None   # only needed for quest agent or spacemouse agent
     hz: int = 100
-    start_joints: Optional[Tuple[float, ...]] = None
+    start_joints: Optional[np.ndarray] = None
 
     gello_port: Optional[str] = None
     mock: bool = False
@@ -119,8 +119,6 @@ def main(args):
         reset_joints_right = np.deg2rad([90, -90, 90, -90, -90, 0])
         reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
         curr_joints = env.get_obs()["joint_positions"]
-        print(curr_joints)
-        print(reset_joints)
         max_delta = (np.abs(curr_joints - reset_joints)).max()
         steps = min(int(max_delta / 0.01), 100)
 
@@ -152,11 +150,8 @@ def main(args):
                 reset_joints = np.array(args.start_joints)
 
             curr_joints = np.asarray(env.get_obs()["joint_positions"])
-            # curr_joints = np.array(curr_joints)   
-            # print(reset_joints,curr_joints)
-            # curr_joints = np.asarray(env.get_obs()["joint_positions"], dtype=float).reshape(-1)
             reset_joints = _match_dofs(reset_joints, curr_joints.size)
-            if reset_joints.shape == curr_joints.shape:
+            if reset_joints is not None and reset_joints.shape == curr_joints.shape:
                 max_delta = (np.abs(curr_joints - reset_joints)).max()
                 steps = min(int(max_delta / 0.01), 100)
 
@@ -190,11 +185,11 @@ def main(args):
     print("Going to start position")
     start_pos = agent.act(env.get_obs())
     obs = env.get_obs()
-    #joints = obs["joint_positions"]
     joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)  # (6,)
     start_pos = _match_dofs(start_pos, joints.size)
     print("ur5 joints",joints)
     print("dynamixel joints:",start_pos)
+    print("differences:", start_pos - joints)
     abs_deltas = np.abs(start_pos - joints)
     id_max_joint_delta = np.argmax(abs_deltas)
 
@@ -227,7 +222,6 @@ def main(args):
 
         current_joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
         command_joints = _match_dofs(agent.act(obs), current_joints.size)
-
 
         delta = command_joints - current_joints
         max_joint_delta = np.abs(delta).max()

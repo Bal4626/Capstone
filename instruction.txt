@@ -1,0 +1,17 @@
+source venv/bin/activate
+
+###1st terminal
+# For simulation
+python3 -m experiments.launch_nodes --robot sim_ur
+
+# For real hardware
+python3 -m experiments.launch_nodes --robot ur
+
+
+###2nd terminal
+python3 -m experiments.run_env --agent=gello --force_control
+
+python3 -m experiments.launch_nodes --robot bimanual_ur
+
+###command to run simulated force on gello arm
+python3 -m experiments.run_env --agent gello --simulate --sim-force 0 0 1.0 0 0 

@@ -10,12 +10,10 @@ import numpy as np
 from gello.agents.agent import Agent
 from gello.env import RobotEnv
 
-#added this for haptic feedback
-# from gello.env import Rate
-# rate = Rate(100)
+# Import the new force feedback module
+from gello.utils.force_feedback import force_feedback
 
 DEFAULT_MAX_JOINT_DELTA = 1.0
-
 
 def move_to_start_position(
     env: RobotEnv, agent: Agent, max_delta: float = 1.0, steps: int = 25
@@ -153,8 +151,6 @@ def run_control_loop(
         print_timing: Whether to print timing information
         use_colors: Whether to use colored terminal output
     """
-    # Check if we can use colors
-    colors_available = False
     if use_colors:
         try:
             from termcolor import colored
@@ -167,82 +163,65 @@ def run_control_loop(
         start_msg = "\nStart 🚀🚀🚀"
 
     print(start_msg)
-
-    start_time = time.time()
     obs = env.get_obs()
 
-    # #old GELLO code
-    # while True:
-    #     if print_timing:
-    #         num = time.time() - start_time
-    #         message = f"\rTime passed: {round(num, 2)}          "
-
-    #         if colors_available:
-    #             print(
-    #                 colored(message, color="white", attrs=["bold"]), end="", flush=True
-    #             )
-    #         else:
-    #             print(message, end="", flush=True)
-
-    #     action = agent.act(obs)
-
-    #     # Handle save interface
-    #     if save_interface is not None:
-    #         result = save_interface.update(obs, action)
-    #         if result == "quit":
-    #             break
-
-    #     obs = env.step(action)
+    #Detect if this is a bimanual agent
+    is_bimanual = hasattr(agent, 'agent_left') and hasattr(agent,'agent_right')
 
     # Configure control mode
-    if force_control and hasattr(agent, '_robot'):
-        print("🔧 Switching GELLO to torque control mode...")
-        try:
-            agent._robot.set_current_control_mode()
-            print("✅ Torque control enabled")
-        except Exception as e:
-            print(f"⚠️ Failed to enable torque control: {e}")
-            force_control = False  # Fallback to position control
+    if force_control:
+        if is_bimanual:
+            try:
+                agent.agent_left._robot.set_current_control_mode()
+                agent.agent_right._robot.set_current_control_mode()
+                print("✅ Bimanual Torque control enabled")
+            except Exception as e:
+                print(f"⚠️ Failed to enable torque control: {e}")
+                force_control = False  # Fallback to position control
 
+        else:
+            try:
+                agent._robot.set_current_control_mode()
+                print("✅ Single Torque control enabled")
+            except Exception as e:
+                print(f"⚠️ Failed to enable torque control: {e}")
+                force_control = False  # Fallback to position control
+    
     try:
         while True:
             action = agent.act(obs)
             obs = env.step(action)
 
             if force_control:
-                
-                #added this for torque haptic feedback
-                tau_ext = obs["torques"]
-                haptic_torques = tau_ext
-
-                # 6. Scale and clip
-                haptic_gain = 1  # Tune: 0.01–0.05 for 5V XL330s
-                joint_signs = np.array([1, 1, -1, 1, 1, 1])
-                scaled_torques = haptic_gain * haptic_torques * joint_signs
-                scaled_torques = np.clip(scaled_torques, -0.08, 0.08)  # Nm
-                print("scaled_torques",np.round(scaled_torques,3))
-                print("------")
-
-                # 7. Send to GELLO (6 joints; gripper appended)
-                if hasattr(agent, 'set_agent_torque'):
-                    try:
-                        scaled_torques = np.append(scaled_torques,0)
-                        agent.set_agent_torque(scaled_torques)
-                    except Exception as e:
-                        print(f"⚠️ Torque command failed: {e}")
+                if is_bimanual:
+                    force_feedback(agent.agent_left, obs, arm_index=0, total_arms=2)
+                    force_feedback(agent.agent_right, obs, arm_index=1, total_arms=2)
+                else:
+                    force_feedback(agent, obs, arm_index=0, total_arms=1)
 
     except KeyboardInterrupt:
         print("\n\n🛑 Shutting down...")
     finally:
         # Always return to safe position control mode on exit
         if force_control and hasattr(agent, '_robot'):
-            print("🔧 Returning GELLO to position control mode...")
-            try:
-                # Zero torques first
-                if hasattr(agent, 'set_agent_torque'):
-                    agent.set_agent_torque(np.zeros(len(agent._robot.joint_ids)))
-                # Then switch mode
-                agent._robot.set_position_control_mode()
-                print("✅ Position control restored")
-            except Exception as e:
-                print(f"⚠️ Error during shutdown: {e}")
+            if is_bimanual:
+                try:
+                    agent.agent_left.set_agent_torque(np.zeros(len(agent.agent_left._robot.joint_ids))) #type: ignore
+                    agent.agent_right.set_agent_torque(np.zeros(len(agent.agent_right._robot.joint_ids))) #type: ignore
+                    
+                    # Then switch mode
+                    agent.agent_left._robot.set_position_control_mode() #type: ignore
+                    agent.agent_right._robot.set_position_control_mode() #type: ignore
+                    print("✅ Position control restored")
+                except Exception as e:
+                    print(f"⚠️ Error during shutdown: {e}")
+
+            else:
+                try:
+                    # Zero torques first
+                    agent.set_agent_torque(np.zeros(len(agent._robot.joint_ids))) #type: ignore
+                    # Then switch mode
+                    agent._robot.set_position_control_mode() #type: ignore
+                    print("✅ Position control restored")
+                except Exception as e:
+                    print(f"⚠️ Error during shutdown: {e}")
