@@ -7,7 +7,7 @@ from gello.robots.robot import Robot
 class URRobot(Robot):
     """A class representing a UR robot."""
 
-    def __init__(self, robot_ip: str = "192.168.20.66", no_gripper: bool = True):
+    def __init__(self, robot_ip: str = "192.168.20.66", no_gripper: bool = True, robot_type = "ur5e" ,gripper_type = "robotiq"):
         import rtde_control
         import rtde_receive
 
@@ -21,12 +21,15 @@ class URRobot(Robot):
         self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
 
         if not no_gripper:
-            from gello.robots.robotiq_gripper import RobotiqGripper
-
-            self.gripper = RobotiqGripper()
-            self.gripper.connect(hostname=robot_ip, port=63352)
-            # print("gripper connected")
-            # self.gripper.activate()
+            if gripper_type == "robotiq":
+                from gello.robots.robotiq_gripper import RobotiqGripper
+                self.gripper = RobotiqGripper()
+                self.gripper.connect(hostname=robot_ip, port=63352)
+                # print("gripper connected")
+                # self.gripper.activate()
+            else:
+                from gello.robots.EHPS16A_gripper import EHPS16Gripper
+                self.gripper = EHPS16Gripper(robot_ip = robot_ip)
 
         [print("connect") for _ in range(   4)]
 
@@ -34,17 +37,10 @@ class URRobot(Robot):
         self.robot.endFreedriveMode()
         # self.robot.freedriveMode()
         self._use_gripper = not no_gripper
-
-        #added this for haptic
-        self._prev_gripper_pos = None
-        self._prev_gripper_time = None
-        self._gripper_velocity = 0.0
             
-        #commented this to see if frame + joint sign fix feedback
-        # self.robot.zeroFtSensor() 
-
         self._tau_ext_filtered = None
         self._alpha = 0.8  # 0 = more smoothing
+        self._robot_type = robot_type
         
     def num_dofs(self) -> int:
         """Get the number of joints of the robot.
@@ -146,16 +142,26 @@ class URRobot(Robot):
             [0,     0,      0,    1]
         ])
 
-    def ur5e_fk(self,q):
-        # DH params for UR5e
-        dh = [
-            (q[0], 0.1625, 0.0, np.pi/2),
-            (q[1], 0.0,   -0.425, 0.0),
-            (q[2], 0.0,   -0.3922, 0.0),
-            (q[3], 0.1333, 0.0, np.pi/2),
-            (q[4], 0.0997, 0.0, -np.pi/2),
-            (q[5], 0.0996, 0.0, 0.0)
-        ]
+    def ur_fk(self,q):
+        if self._robot_type == "ur5e":
+            # DH params for UR5e
+            dh = [
+                (q[0], 0.1625, 0.0, np.pi/2),
+                (q[1], 0.0,   -0.425, 0.0),
+                (q[2], 0.0,   -0.3922, 0.0),
+                (q[3], 0.1333, 0.0, np.pi/2),
+                (q[4], 0.0997, 0.0, -np.pi/2),
+                (q[5], 0.0996, 0.0, 0.0)
+            ]
+        elif self._robot_type == "ur3e":
+            dh = [
+                (q[0], 0.15185, 0.0, np.pi/2),
+                (q[1], 0.0,    -0.24355, 0.0),
+                (q[2], 0.0,    -0.2132, 0.0),
+                (q[3], 0.13105, 0.0, np.pi/2),
+                (q[4], 0.08535, 0.0, -np.pi/2),
+                (q[5], 0.0921,  0.0, 0.0)
+            ]
         
         T = np.eye(4)
         Ts = [T.copy()]
@@ -165,8 +171,8 @@ class URRobot(Robot):
             Ts.append(T.copy())
         return Ts  # list of T_0^0, T_0^1, ..., T_0^6
 
-    def ur5e_jacobian_base(self,q):
-        Ts = self.ur5e_fk(q)
+    def ur_jacobian_base(self,q):
+        Ts = self.ur_fk(q)
         p_tcp = Ts[-1][:3, 3]
         
         J = np.zeros((6, 6))
@@ -179,23 +185,6 @@ class URRobot(Robot):
             J[3:, i] = z_im1
         return J
 
-    def jacobian_tcp(self,q):
-        J_base = self.ur5e_jacobian_base(q)
-        T_06 = self.ur5e_fk(q)[-1]
-        R = T_06[:3, :3]
-        p = T_06[:3, 3]
-        
-        def skew(v):
-            return np.array([[0, -v[2], v[1]],
-                            [v[2], 0, -v[0]],
-                            [-v[1], v[0], 0]])
-        
-        Ad_inv = np.block([
-            [R.T, -R.T @ skew(p)],
-            [np.zeros((3,3)), R.T]
-        ])
-        return Ad_inv @ J_base
-
     def get_external_joint_torques(self, q: np.ndarray = None) -> np.ndarray:
         """
         Estimate external joint torques from FT sensor.
@@ -204,18 +193,14 @@ class URRobot(Robot):
         if q is None:
             q = self.get_joint_state()[:6]
         
-        # Get wrench at TCP in tcp frame (correctly transformed)
-        F_tcp = self.get_forces()  # [fx, fy, fz, mx, my, mz] in tcp
+        F_tcp = self.get_forces()  # [fx, fy, fz, mx, my, mz] in tcp, but it is actually in base frame
 
         # Apply scaling to physical forces
         scale_matrix = np.diag([0.007, 0.007, 0.007, 0.007, 0.007, 0.007])  # diag([lin_scale, rot_scale])
         F_tcp_scaled = F_tcp @ scale_matrix
 
-        # print("F before scale:",F_tcp)
-        # print("F after scale",F_tcp_scaled)
-
         # Get geometric Jacobian (6x6)
-        J_tcp = self.ur5e_jacobian_base(q)  # maps joint vel to spatial twist at TCP
+        J_tcp = self.ur_jacobian_base(q)  # maps joint vel to spatial twist at TCP
         
         # External joint torques: τ = J^T @ F
         tau_ext = J_tcp.T @ F_tcp_scaled
@@ -238,30 +223,6 @@ class URRobot(Robot):
         else:
             vel = robot_joints_velocities
         return vel 
-    
-    #test convert TCP force to base force
-    def tcp_wrench_to_base(self,F_tcp, T_base_tcp):
-        """
-        Convert wrench from TCP frame to base frame.
-        F_tcp: [Fx, Fy, Fz, Tx, Ty, Tz] in TCP frame
-        T_base_tcp: 4x4 homogeneous transform from TCP to base
-        Returns: F_base in base frame
-        """
-        R = T_base_tcp[:3, :3]
-        p = T_base_tcp[:3, 3]
-
-        def skew(v):
-            return np.array([[0, -v[2], v[1]],
-                            [v[2], 0, -v[0]],
-                            [-v[1], v[0], 0]])
-
-        F = F_tcp[:3]
-        tau = F_tcp[3:]
-
-        F_base = R @ F
-        tau_base = R @ tau + skew(p) @ (R @ F)
-
-        return np.hstack([F_base, tau_base])
 
 
     def get_observations(self) -> Dict[str, np.ndarray]:
@@ -271,7 +232,6 @@ class URRobot(Robot):
 
         # gripper_pos = np.array([joints[-1]])
         forces = self.get_forces()
-        print("forces",np.round(forces,3))
         torques = self.get_external_joint_torques(joints)
         velocities = self.get_joint_velocities()
         

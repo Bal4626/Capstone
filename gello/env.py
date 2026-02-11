@@ -74,10 +74,7 @@ class RobotEnv:
         required_keys = ["joint_positions", "joint_velocities", "ee_pos_quat"]
         for key in required_keys:
             assert key in robot_obs, f"Missing required observation: {key}"
-        # assert "joint_positions" in robot_obs
-        # assert "joint_velocities" in robot_obs
-        # assert "ee_pos_quat" in robot_obs
-        # assert "forces" in robot_obs
+            
         observations["joint_positions"] = robot_obs["joint_positions"]
         observations["joint_velocities"] = robot_obs["joint_velocities"]
         observations["ee_pos_quat"] = robot_obs["ee_pos_quat"]

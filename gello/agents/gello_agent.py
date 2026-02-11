@@ -116,16 +116,16 @@ class GelloAgent(Agent):
     def act(self, obs: Dict[str, np.ndarray]) -> np.ndarray:
         return self._robot.get_joint_state()
     
-    #for initial calibrations to start positions
-    def calibrate_arm(self, arm_pos: List[int, ]):
-        '''Calibrates the arm when all arm joints are moved to the positions provided. A 30s timeout exists.
+    # #for initial calibrations to start positions
+    # def calibrate_arm(self, arm_pos: List[int, ]):
+    #     '''Calibrates the arm when all arm joints are moved to the positions provided. A 30s timeout exists.
 
-        :param arm_pos: arm joint values to align to, in degrees.
-        '''
-        if self._robot.is_calibrated():
-            print("Already calibrated")
-        else:
-            self._robot.calibrate(np.deg2rad(arm_pos))
+    #     :param arm_pos: arm joint values to align to, in degrees.
+    #     '''
+    #     if self._robot.is_calibrated():
+    #         print("Already calibrated")
+    #     else:
+    #         self._robot.calibrate(np.deg2rad(arm_pos))
     
     #added this for torque haptic feedback
     def set_agent_torque(self, torques: np.ndarray):

@@ -40,8 +40,8 @@ def launch_robot_server(args: Args):
             from gello.robots.ur import URRobot
 
             # IP for the bimanual robot setup is hardcoded
-            _robot_l = URRobot(robot_ip="192.168.20.66")
-            _robot_r = URRobot(robot_ip="192.168.20.65")
+            _robot_l = URRobot(robot_ip="192.168.20.66", no_gripper = False, robot_type = "ur5e", gripper_type = "robotiq")
+            _robot_r = URRobot(robot_ip="192.168.20.65", no_gripper = False, robot_type = "ur3e", gripper_type = "digital")
             robot = BimanualRobot(_robot_l, _robot_r)
 
         else:
