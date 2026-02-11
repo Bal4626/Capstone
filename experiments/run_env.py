@@ -140,25 +140,12 @@ def main(args):
         reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
         curr_joints = env.get_obs()["joint_positions"]
         print("curr_joints len:", len(env.get_obs()["joint_positions"]))
-        print(f"Reset positions - Left: {np.rad2deg(reset_joints_left)}")
-        print(f"Reset positions - Right: {np.rad2deg(reset_joints_right)}")
-        
-        # Handle shape mismatch if curr_joints includes gripper positions
-        if len(curr_joints) != len(reset_joints):
-            print(f"Shape mismatch: curr_joints={len(curr_joints)}, reset_joints={len(reset_joints)}")
-            if len(curr_joints) > len(reset_joints):
-                # Add gripper positions (0.0 for grippers)
-                gripper_positions = np.zeros(len(curr_joints) - len(reset_joints))
-                reset_joints = np.concatenate([reset_joints, gripper_positions])
-                print(f"Added {len(gripper_positions)} gripper positions to reset_joints")
 
         max_delta = (np.abs(curr_joints - reset_joints)).max()
         steps = min(int(max_delta / 0.01), 100)
-        print(f"Moving to reset positions with {steps} steps, max_delta: {np.rad2deg(max_delta):.1f} degrees")
 
         for jnt in np.linspace(curr_joints, reset_joints, steps):
             env.step(jnt)
-            time.sleep(0.01)
     else:
         if args.agent == "gello":
             gello_port = args.gello_port
