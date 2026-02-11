@@ -60,6 +60,9 @@ left_offsets = list(config_dict["joint_offsets"])
 # left_offsets[4] += 3.5 #10
 # left_offsets[0] += 0 #11
 
+# these offsets might change depeding on the arms positions throwing an error.
+#  We automated this in gello_get_offset.py
+
 
 right_offsets = list(config_dict["joint_offsets"])
 
