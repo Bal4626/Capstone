@@ -89,8 +89,10 @@ def launch_robot_server(args: Args):
 
             # IP for the bimanual robot setup is hardcoded
             # WE MUST CHANGE THIS WHEN WE USING THE BIMANUAL ROBOT  -BALRAJ
-            _robot_l = URRobot(robot_ip="192.168.20.66")
-            _robot_r = URRobot(robot_ip="192.168.20.65")
+            # Logical assignment: Left=65, Right=66
+            # Both robots must have same gripper config for bimanual (even DOF total)
+            _robot_l = URRobot(robot_ip="192.168.20.65", no_gripper=True)   # Left robot: 6 DOF (no gripper)
+            _robot_r = URRobot(robot_ip="192.168.20.66", no_gripper=True)   # Right robot: 6 DOF (no gripper)
             robot = BimanualRobot(_robot_l, _robot_r)
         elif args.robot == "yam":
             from gello.robots.yam import YAMRobot

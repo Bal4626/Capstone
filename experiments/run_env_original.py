@@ -78,9 +78,10 @@ def main(args):
     if args.bimanual:
         if args.agent == "gello":
             # dynamixel control box port map (to distinguish left and right gello)
-            # SWAPPED: Fix opposite movement issue
-            left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0"   # Left GELLO (swapped)
-            right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0"  # Right GELLO (swapped)
+            #right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0"
+            #left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0"
+            left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0"
+            right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0"
             agent_cfg = {
                 "_target_": "gello.agents.agent.BimanualAgent",
                 "agent_left": {
@@ -132,52 +133,19 @@ def main(args):
 
         # System setup specific. This reset configuration works well on our setup. If you are mounting the robot
         # differently, you need a separate reset joint configuration.
-        
-        # ORIGINAL WORKING RESET POSITIONS - RESTORE THESE
         reset_joints_left = np.deg2rad([-90, -90, -90, -90, 90, 0])
-        reset_joints_right = np.deg2rad([90, -90, 90, -90, -90, 0])
-        
-        # If movements are opposite, try swapping the reset positions:
-        # reset_joints_left = np.deg2rad([90, -90, 90, -90, -90, 0])   # Swap: use right reset for left
-        # reset_joints_right = np.deg2rad([-90, -90, -90, -90, 90, 0]) # Swap: use left reset for right
-        
-        print(f"GELLO Controller assignments:")
-        if args.agent == "gello":
-            print(f"  Left GELLO port: {left}")
-            print(f"  Right GELLO port: {right}")
-        print(f"Reset positions (degrees):")
-        print(f"  Left arm reset: {np.rad2deg(reset_joints_left)}")
-        print(f"  Right arm reset: {np.rad2deg(reset_joints_right)}")
-        print(f"Physical robot mapping:")
-        print(f"  Left physical robot IP: 192.168.20.65 (digital gripper)")
-        print(f"  Right physical robot IP: 192.168.20.66 (robotiq gripper)")
-        print(f"NOTE: If movements are opposite, the GELLO-to-robot mapping might be swapped!")
-        
-        # Alternative positions:
+        reset_joints_right = np.deg2rad([90, -90, -90, -90, 90, 0])
         # reset_joints_left = np.deg2rad([320, -100, -50, -150, 50, 50])
         # reset_joints_right = np.deg2rad([40, -70, 20, 20, -30, 340])
         reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
         curr_joints = env.get_obs()["joint_positions"]
         print("curr_joints len:", len(env.get_obs()["joint_positions"]))
-        print(f"Bimanual reset positions - Left: {np.rad2deg(reset_joints_left)}")
-        print(f"Bimanual reset positions - Right: {np.rad2deg(reset_joints_right)}")
-        
-        # Handle shape mismatch if curr_joints includes gripper positions
-        if len(curr_joints) != len(reset_joints):
-            print(f"Shape mismatch: curr_joints={len(curr_joints)}, reset_joints={len(reset_joints)}")
-            if len(curr_joints) > len(reset_joints):
-                # Add gripper positions (0.0 for both grippers)
-                gripper_positions = np.zeros(len(curr_joints) - len(reset_joints))
-                reset_joints = np.concatenate([reset_joints, gripper_positions])
-                print(f"Added {len(gripper_positions)} gripper positions to reset_joints")
 
         max_delta = (np.abs(curr_joints - reset_joints)).max()
         steps = min(int(max_delta / 0.01), 100)
-        print(f"Moving to reset positions with {steps} steps, max_delta: {max_delta}")
 
         for jnt in np.linspace(curr_joints, reset_joints, steps):
             env.step(jnt)
-            time.sleep(0.01)
     else:
         if args.agent == "gello":
             gello_port = args.gello_port

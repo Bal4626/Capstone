@@ -9,6 +9,7 @@ import rtde_receive
 from dashboard_client import DashboardClient
 import time
 from gello.robots.robotiq_gripper import RobotiqGripper
+from gello.robots.digital_gripper import DigitalGripper
 import traceback
 
 
@@ -17,6 +18,9 @@ class URRobot(Robot):
 
     def __init__(self, robot_ip: str = "", no_gripper: bool = False): #BALRAJ  Turn the gripper on or off. 
         self.robot_ip = robot_ip
+        # Auto-detect gripper type based on IP address
+        self.use_digital_gripper = robot_ip.endswith("65")  # 192.168.20.65 (left arm) uses digital gripper
+        self.use_robotiq_gripper = robot_ip.endswith("66")  # 192.168.20.66 (right arm) uses robotiq gripper
 
         [print("in ur robot") for _ in range(4)]
         try:
@@ -27,17 +31,31 @@ class URRobot(Robot):
         except Exception as e:
             print(e)
             print(self.robot_ip)
+            
+        # Initialize appropriate gripper based on IP
         if not no_gripper:
-            self.gripper = RobotiqGripper()
-            self.gripper.connect(hostname=robot_ip, port=63352)
-            print("gripper connected")
-            # gripper.activate()
+            try:
+                if self.use_digital_gripper:
+                    print(f"Initializing digital gripper for {robot_ip}")
+                    self.gripper = DigitalGripper(robot_ip)
+                    print("Digital gripper connected")
+                elif self.use_robotiq_gripper:
+                    print(f"Initializing Robotiq gripper for {robot_ip}")
+                    self.gripper = RobotiqGripper()
+                    self.gripper.connect(hostname=robot_ip, port=63352)
+                    print("Robotiq gripper connected")
+                else:
+                    print(f"No gripper configuration for IP {robot_ip}")
+                    self.gripper = None
+            except Exception as e:
+                print(f"Failed to initialize gripper for {robot_ip}: {e}")
+                self.gripper = None
 
         [print("connect") for _ in range(4)]
 
         self._free_drive = False
         self.robot.endFreedriveMode()
-        self._use_gripper = not no_gripper
+        self._use_gripper = not no_gripper and hasattr(self, 'gripper') and self.gripper is not None
 
     def _ensure_control(self) -> bool:
         """Ensure RTDEControlInterface exists and is running."""
