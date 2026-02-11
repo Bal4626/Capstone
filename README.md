@@ -9,7 +9,8 @@ source .venv/bin/activate
 python -m experiments.launch_nodes --robot=bimanual_ur
 
 
-python -m experiments.run_env --agent=gello --bimanual
+python3 -m experiments.launch_nodes --robot bimanual_ur
+
 
 
 
