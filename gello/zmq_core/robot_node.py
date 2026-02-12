@@ -7,14 +7,11 @@ import zmq
 
 from gello.robots.robot import Robot
 
-DEFAULT_ROBOT_PORT = 6000
-
-
-class ZMQServerRobot:
+class ZMQServerRobot:   # zero message queue!
     def __init__(
         self,
         robot: Robot,
-        port: int = DEFAULT_ROBOT_PORT,
+        port: int = 6001,
         host: str = "127.0.0.1",
     ):
         self._robot = robot
@@ -68,7 +65,7 @@ class ZMQServerRobot:
 class ZMQClientRobot(Robot):
     """A class representing a ZMQ client for a leader robot."""
 
-    def __init__(self, port: int = DEFAULT_ROBOT_PORT, host: str = "127.0.0.1"):
+    def __init__(self, port: int = 6001, host: str = "127.0.0.1"):
         self._context = zmq.Context()
         self._socket = self._context.socket(zmq.REQ)
         self._socket.connect(f"tcp://{host}:{port}")

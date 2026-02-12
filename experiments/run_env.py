@@ -6,10 +6,27 @@ from typing import Optional, Tuple
 import numpy as np
 import tyro
 
+from gello import env
+from gello.agents import agent
 from gello.env import RobotEnv
 from gello.robots.robot import PrintRobot
 from gello.utils.launch_utils import instantiate_from_dict
 from gello.zmq_core.robot_node import ZMQClientRobot
+
+
+
+def _match_dofs(vec, dof: int):
+    """Return vec as np.ndarray of length == dof. If vec is longer by 1 (gripper), drop the last."""
+    if vec is None:
+        return None
+    v = np.asarray(vec, dtype=float).reshape(-1)
+    if v.size == dof + 1:
+        v = v[:dof]          # drop gripper
+    elif v.size > dof:
+        v = v[:dof]          # be safe
+    elif v.size < dof:
+        v = np.pad(v, (0, dof - v.size))
+    return v
 
 
 def print_color(*args, color=None, attrs=(), **kwargs):
@@ -27,9 +44,9 @@ class Args:
     wrist_camera_port: int = 5000
     base_camera_port: int = 5001
     hostname: str = "127.0.0.1"
-    robot_type: str = None  # only needed for quest agent or spacemouse agent
+    robot_type: Optional[str] = None  # only needed for quest agent or spacemouse agent
     hz: int = 100
-    start_joints: Optional[Tuple[float, ...]] = None
+    start_joints: Optional[np.ndarray] = None
 
     gello_port: Optional[str] = None
     mock: bool = False
@@ -37,6 +54,7 @@ class Args:
     data_dir: str = "~/bc_data"
     bimanual: bool = False
     verbose: bool = False
+    delta_mode: bool = True  # BALRAJ it automatically captures the delta at runtime
 
     def __post_init__(self):
         if self.start_joints is not None:
@@ -60,17 +78,21 @@ def main(args):
     if args.bimanual:
         if args.agent == "gello":
             # dynamixel control box port map (to distinguish left and right gello)
-            right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBG6A-if00-port0"
-            left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT7WBEIA-if00-port0"
+            right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0"
+            left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0"
+            # left = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0"
+            # right = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0"
             agent_cfg = {
                 "_target_": "gello.agents.agent.BimanualAgent",
                 "agent_left": {
                     "_target_": "gello.agents.gello_agent.GelloAgent",
                     "port": left,
+                    "start_joints": (-1.57, -1.57, -1.57, -1.57,  1.57, 0.0),
                 },
                 "agent_right": {
                     "_target_": "gello.agents.gello_agent.GelloAgent",
                     "port": right,
+                    "start_joints":  ( 1.57, -1.57,  1.57, -1.57, -1.57, 0.0),
                 },
             }
         elif args.agent == "quest":
@@ -111,10 +133,14 @@ def main(args):
 
         # System setup specific. This reset configuration works well on our setup. If you are mounting the robot
         # differently, you need a separate reset joint configuration.
-        reset_joints_left = np.deg2rad([0, -90, -90, -90, 90, 0, 0])
-        reset_joints_right = np.deg2rad([0, -90, 90, -90, -90, 0, 0])
+        reset_joints_left = np.deg2rad([-90, -90, -90, -90, 90, 0])
+        reset_joints_right = np.deg2rad([90, -90, 90, -90, -90, 0])
+        # reset_joints_left = np.deg2rad([320, -100, -50, -150, 50, 50])
+        # reset_joints_right = np.deg2rad([40, -70, 20, 20, -30, 340])
         reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
         curr_joints = env.get_obs()["joint_positions"]
+        print("curr_joints len:", len(env.get_obs()["joint_positions"]))
+
         max_delta = (np.abs(curr_joints - reset_joints)).max()
         steps = min(int(max_delta / 0.01), 100)
 
@@ -127,7 +153,7 @@ def main(args):
                 usb_ports = glob.glob("/dev/serial/by-id/*")
                 print(f"Found {len(usb_ports)} ports")
                 if len(usb_ports) > 0:
-                    gello_port = usb_ports[0]
+                    gello_port = usb_ports[0] 
                     print(f"using port {gello_port}")
                 else:
                     raise ValueError(
@@ -140,12 +166,17 @@ def main(args):
             }
             if args.start_joints is None:
                 reset_joints = np.deg2rad(
-                    [0, -90, 90, -90, -90, 0, 0]
-                )  # Change this to your own reset joints
+                    [-90, -90, -90, -90, 90, 0]
+                )  # Change this to your own reset joints for the starting position
             else:
                 reset_joints = np.array(args.start_joints)
 
-            curr_joints = env.get_obs()["joint_positions"]
+            # curr_joints = env.get_obs()["joint_positions"]
+            # curr_joints = np.array(curr_joints)
+
+            curr_joints = np.asarray(env.get_obs()["joint_positions"], dtype=float).reshape(-1)
+            reset_joints = _match_dofs(reset_joints, curr_joints.size)
+            assert reset_joints is not None
             if reset_joints.shape == curr_joints.shape:
                 max_delta = (np.abs(curr_joints - reset_joints)).max()
                 steps = min(int(max_delta / 0.01), 100)
@@ -176,60 +207,99 @@ def main(args):
             raise ValueError("Invalid agent name")
 
     agent = instantiate_from_dict(agent_cfg)
-    # going to start position
-    print("Going to start position")
-    start_pos = agent.act(env.get_obs())
-    obs = env.get_obs()
-    joints = obs["joint_positions"]
 
-    abs_deltas = np.abs(start_pos - joints)
-    id_max_joint_delta = np.argmax(abs_deltas)
 
-    max_joint_delta = 3.8
-    if abs_deltas[id_max_joint_delta] > max_joint_delta:
-        id_mask = abs_deltas > max_joint_delta
-        print()
-        ids = np.arange(len(id_mask))[id_mask]
-        for i, delta, joint, current_j in zip(
-            ids,
-            abs_deltas[id_mask],
-            start_pos[id_mask],
-            joints[id_mask],
-        ):
-            print(
-                f"joint[{i}]: \t delta: {delta:4.3f} , leader: \t{joint:4.3f} , follower: \t{current_j:4.3f}"
-            )
-        return
+    ########################################################## BALRAJ
 
-    print(f"Start pos: {len(start_pos)}", f"Joints: {len(joints)}")
-    assert len(start_pos) == len(
-        joints
-    ), f"agent output dim = {len(start_pos)}, but env dim = {len(joints)}"
+    # Delta-mode teleop: capture master & slave zero at runtime and command deltas.
+    if args.delta_mode:
+        obs0 = env.get_obs()
+        slave_zero = np.asarray(obs0["joint_positions"], dtype=float).reshape(-1)
+        master_zero = _match_dofs(agent.act(obs0), slave_zero.size)
 
-    max_delta = 0.05
-    for _ in range(25):
+        class DeltaBiasAgent:
+            def __init__(self, base_agent, master_bias, slave_bias):
+                self._base_agent = base_agent
+                self._master_bias = np.asarray(master_bias, dtype=float).reshape(-1)
+                self._slave_bias = np.asarray(slave_bias, dtype=float).reshape(-1)
+                assert (
+                    self._master_bias.size == self._slave_bias.size
+                ), "Master/slave DOF mismatch"
+
+            def act(self, obs):
+                master_now = _match_dofs(
+                    self._base_agent.act(obs), self._slave_bias.size
+                )
+                delta = master_now - self._master_bias
+                return self._slave_bias + delta
+
+        agent = DeltaBiasAgent(agent, master_zero, slave_zero)
+        print("Delta teleop enabled: captured master/slave zeros and running in delta mode.")
+    else:
+        # Default absolute-start behaviour
+        print("Going to start position")
+        start_pos = agent.act(env.get_obs())
         obs = env.get_obs()
-        command_joints = agent.act(obs)
-        current_joints = obs["joint_positions"]
-        delta = command_joints - current_joints
-        max_joint_delta = np.abs(delta).max()
-        if max_joint_delta > max_delta:
-            delta = delta / max_joint_delta * max_delta
-        env.step(current_joints + delta)
+        joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
+        start_pos = _match_dofs(start_pos, joints.size)
 
-    obs = env.get_obs()
-    joints = obs["joint_positions"]
-    action = agent.act(obs)
-    if (action - joints > 0.5).any():
-        print("Action is too big")
+        abs_deltas = np.abs(start_pos - joints)
+        id_max_joint_delta = np.argmax(abs_deltas)
 
-        # print which joints are too big
-        joint_index = np.where(action - joints > 0.8)
-        for j in joint_index:
+        max_joint_delta = 0.8
+        if abs_deltas[id_max_joint_delta] > max_joint_delta:
+            id_mask = abs_deltas > max_joint_delta
+            print()
+            ids = np.arange(len(id_mask))[id_mask]
+            for i, delta, joint, current_j in zip(
+                ids,
+                abs_deltas[id_mask],
+                start_pos[id_mask],
+                joints[id_mask],
+            ):
+                print(
+                    f"joint[{i}]: \t delta: {delta:4.3f} , leader: \t{joint:4.3f} , follower: \t{current_j:4.3f}"
+                )
+            return
+
+        print(f"Start pos: {len(start_pos)}", f"Joints: {len(joints)}")
+        assert len(start_pos) == len(
+            joints
+        ), f"agent output dim = {len(start_pos)}, but env dim = {len(joints)}"
+
+        max_delta = 0.05
+        for _ in range(25):
+            obs = env.get_obs()
+            current_joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
+            command_joints = _match_dofs(agent.act(obs), current_joints.size)
+
+            delta = command_joints - current_joints
+            max_joint_delta = np.abs(delta).max()
+            if max_joint_delta > max_delta:
+                delta = delta / max_joint_delta * max_delta
+            env.step(current_joints + delta)
+
+        obs = env.get_obs()
+        joints = np.asarray(obs["joint_positions"], dtype=float).reshape(-1)
+        action = _match_dofs(agent.act(obs), joints.size)
+
+        diff = action - joints
+        bad = np.where(diff > 0.8)[0]
+        for j in bad:
             print(
                 f"Joint [{j}], leader: {action[j]}, follower: {joints[j]}, diff: {action[j] - joints[j]}"
             )
-        exit()
+            exit()
+        if (action - joints > 0.8).any():
+            print("Action is too big")
+
+            # print which joints are too big
+            joint_index = np.where(action - joints > 0.8)
+            for j in joint_index:
+                print(
+                    f"Joint [{j}], leader: {action[j]}, follower: {joints[j]}, diff: {action[j] - joints[j]}"
+                )
+            exit()
 
     from gello.utils.control_utils import SaveInterface, run_control_loop
 

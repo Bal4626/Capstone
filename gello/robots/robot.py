@@ -21,10 +21,10 @@ class Robot(Protocol):
 
     @abstractmethod
     def get_joint_state(self) -> np.ndarray:
-        """Get the current state of the leader robot.
+        """Get the current state of the robot.
 
         Returns:
-            T: The current state of the leader robot.
+            T: The current state of the robot.
         """
         raise NotImplementedError
 
@@ -33,7 +33,7 @@ class Robot(Protocol):
         """Command the leader robot to a given state.
 
         Args:
-            joint_state (np.ndarray): The state to command the leader robot to.
+            joint_state (np.ndarray): The state to command the robot to.
         """
         raise NotImplementedError
 

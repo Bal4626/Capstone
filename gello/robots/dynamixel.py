@@ -1,15 +1,20 @@
+"""
+This class handles the mid level implementation of the Dynamixel robot.
+
+Lower level implementation is in the DynamixelDriver class.
+"""
+
 from typing import Dict, Optional, Sequence, Tuple
 import numpy as np
 import time
 
 from dataclasses import dataclass
 from gello.robots.robot import Robot
-from gello.dynamixel.driver import DynamixelDriver, FakeDynamixelDriver
+from gello.dynamixel.driver import DynamixelDriver, FakeDynamixelDriver, CURRENT_CONTROL_MODE, POSITION_CONTROL_MODE
 from gello.utils.kinematics import ScaledURKinematics
 
 class DynamixelRobot(Robot):
     """A class representing a Dynamixel robot. 
-    
     Handles hardware-specific details: signs, offsets, gripper presence, etc."""
     def __init__(
         self,
@@ -21,55 +26,52 @@ class DynamixelRobot(Robot):
         baudrate: int = 57600,
         gripper_config: Optional[Tuple[int, float, float]] = None,
         ):  
-        """Initialize Dynamixel robot.
+        """Initializes a Dynamixel robot. 
+        The gripper is only initialized when gripper_config is provided.   
         
         :param joint_ids: List of Dynamixel motor IDs for the arm joints
         :param joint_signs: Direction multipliers (1 or -1) for each arm joint
-        :param servo_types: List of servo models
+        :param servo_types: List of servo models at arm joints 
         :param real: Whether to use real hardware or simulation
         :param port: Serial port for real hardware
         :param baudrate: Communication baud rate
-        :param gripper_config: (Optional) tuple of (gripper_id, open_angle, close_angle) in degrees. 
-        If not specified, will be initialized without a gripper
+        :param gripper_config: (Optional) tuple of (gripper_id, open_angle, close_angle) in degrees. If not specified, will be initialized without a gripper
         :param servo_types: (Optional)[Sequence[str]] = None
         """
-        assert len(joint_signs) == len(joint_ids), \
-            "joint_signs and joint_ids length must match"
+        # validate inputs
+        if len(joint_signs) != len(joint_ids):
+            raise ValueError("joint_signs and joint_ids length must match")
+        if len(joint_signs) != len(servo_types):
+            raise ValueError("joint_signs and servo_types length must match")
+        if not np.all(np.abs(joint_signs) == 1):
+            raise ValueError("joint_signs must be 1 or -1")
         
-        assert len(joint_signs) == len(servo_types), \
-            "joint_signs and servo_types length must match"
-        
-        assert np.all(np.abs(joint_signs) == 1), \
-            "joint_signs must be 1 or -1"
-        
-        assert len(joint_signs) == len(joint_ids), \
-            "joint_signs and joint_ids length must match"
-
+        # initialize fields 
         self._joint_ids = tuple(joint_ids)
         self._joint_offsets = np.zeros(len(joint_ids))
         self._joint_signs = np.array(joint_signs)
         self._has_gripper = False if gripper_config is None else True
-        
         self._ids = tuple(joint_ids) if gripper_config is None \
                         else tuple(joint_ids) + (gripper_config[0],)
-
         self._gripper_open_close = None if gripper_config is None \
                         else (np.deg2rad(gripper_config[1]), np.deg2rad(gripper_config[2])) 
-        
         self._driver = DynamixelDriver(self._ids, port=port, baudrate=baudrate, servo_types=servo_types) if real \
                         else FakeDynamixelDriver(self._ids)
-
-        if len(self._driver.get_joints()) > self.num_actuators():
-            raise RuntimeError("More actuators found then initialized for. " \
-            "Ensure gripper_config is provided if gripper is present")
-        
         self._torque_on = False
         self._last_pos = None
         self._alpha = 0.99
-        self._table_alr_printed = False
+        self._table_printed = False
         self._is_calibrated = False
 
+        # check for driver and input consistency 
+        if len(self._driver.get_joints()) != self.num_actuators():
+            raise RuntimeError(f"Driver found {len(self._driver.get_joints())} actuators but expected {self.num_actuators()}")
+        
+        # set to current mode 
         self.set_current_control_mode()
+
+        # allow freedrive
+        self._driver.set_torque_mode(False)
 
     def num_dofs(self) -> int:
         """Return number of degrees of freedom of the robotic arm."""
@@ -97,124 +99,128 @@ class DynamixelRobot(Robot):
             self._last_pos = smoothed_positions
             return smoothed_positions
 
-    def get_joint_state(self) -> np.ndarray:
+    def _get_joint_state(self) -> np.ndarray:
         """Returns the positions of all actuators. 
-        
-        If gripper is present, the last element is normalized to [0,1] where 0 = fully open, 1 = fully closed."""
+        If gripper is present, the last element is normalized to [0,1] where 0=fully open, 1=fully closed.
+        """
+        # require calibration
+        if self._is_calibrated == False:
+            raise RuntimeError("Arm is not calibrated. Calibration required before values can be returned.")
+            # raise RuntimeWarning("Arm is not calibrated. Raw unprocessed values are being returned")
+
+        # process raw joint values
         readings = self._driver.get_joints()
-        
-        # Process arm
         arm_raw = readings[:self.num_dofs()]
         assert arm_raw.size == self.num_dofs()
         arm_calibrated = arm_raw * self._joint_signs + self._joint_offsets
 
-        # Process gripper if present
+        #  process raw gripper values (if present)
         gripper_processed = None
         if self._has_gripper:
             gripper_raw = readings[-1]
-            
             assert self._gripper_open_close is not None
-            
             open_angle, close_angle = self._gripper_open_close
             gripper_norm = (gripper_raw - open_angle) / (close_angle - open_angle)
             gripper_processed = np.clip(gripper_norm, 0, 1)
 
-        # Combine and return results
+        # combine and return results
         positions = arm_calibrated if gripper_processed is None \
             else np.append(arm_calibrated, gripper_processed) 
-        
         assert positions.size == self.num_actuators()
-
         return self._smooth(positions)
 
-    def get_joint_state_arm(self) -> np.ndarray:
-        """Returns the positions of arm actuators in radians."""
-        arm_pos = self.get_joint_state()[:-1] if self._has_gripper else self.get_joint_state()
-        assert arm_pos.size == self.num_dofs()
-        return arm_pos
+    def get_joint_state(self) -> np.ndarray:
+        """Returns the positions of arm joints in radians."""
+        return  self._get_joint_state()[:self.num_dofs()]
     
     def get_gripper_state(self) -> float | None:
-        return self.get_joint_state()[-1] if self._has_gripper else None
+        """Returns the normalized gripper position, if present. Otherwise None"""
+        return self._get_joint_state()[-1] if self._has_gripper else None
 
     def command_joint_state(self, joint_state: np.ndarray):
-        """Send position commands to all actuators.
+        """Send position commands to arm joints. 
         
-        :param joint_state: Target positions in radians for arm joints,
-                        with optional gripper value in [0,1] as last element.
-        :type joint_state: np.ndarray         
-
+        :param joint_state: Target positions in radians
+        # TODO test
         """
-        assert len(joint_state) == len(self._ids), \
-            f"Expected {len(self._ids)} values (arm + gripper), got {len(joint_state)}"
+        # validate input
+        if len(joint_state) != self.num_dofs():
+            raise ValueError(f"Expected {self.num_dofs()} joints values, got {len(joint_state)}")
+        
+        # allow movement only when calibrated 
+        if self._is_calibrated == False:
+            raise RuntimeError("Arm not calibrated. Calibration required before moving")
 
+        # convert joint values to raw values 
+        joint_raw = joint_state / self._joint_signs - self._joint_offsets
+
+        #  append gripper current value (if it exists)
         if self._has_gripper:
-            gripper_norm = joint_state[-1]
-            
-            assert gripper_norm >= 0 and gripper_norm <= 1, \
-                "Normalized gripper value must be in [0,1]"
-            
-            assert len(joint_state[:-1]) == self.num_dofs(), \
-                "Expected {self.num_dofs()} arm joints, got {len(joint_state[:-1])}"
+            gripper_raw = self._driver.get_joints()[-1]
+            all_raw = np.append(joint_raw, gripper_raw)
         else:
-            assert len(joint_state) == self.num_dofs(), \
-                f"Expected {self.num_dofs()} arm joints, got {len(joint_state)}"
+            all_raw = joint_raw
+
+        # set actuators
+        self._driver.set_joints(all_raw.tolist())
+
+    def command_gripper_state(self, state: float):
+        """Send position command to gripper.
         
-        # Process arm joints
-        target_arm = joint_state[:self.num_dofs()]
-        target_arm_raw = target_arm / self._joint_signs - self._joint_offsets
-        
-        targets = target_arm_raw.tolist()
-
-        # Process gripper if present
-        if self._has_gripper:
-            target_gripper = joint_state[-1]
-            open_angle, close_angle = self._gripper_open_close
-            target_gripper_raw = target_gripper * (close_angle - open_angle) + open_angle
-            targets.append(target_gripper_raw)
-
-        self._driver.set_joints(targets)
-    
-    def _check_wrapped_error(self, pose_ref : np.ndarray) -> np.ndarray:
-        """Returns the wrapped error between current arm pose and reference pose, in radians.
-
-        :param pose_ref: Desired joint positions in radians
-        :return: Wrapped error (pose_ref - current_position) in [-π, π]
+        :param state: Normalized gripper value in [0,1], where 0=open, 1=closed
+        # TODO test
         """
-        assert pose_ref.size == self.num_dofs()
+        # validate input
+        if not self._has_gripper:
+            raise RuntimeError("Called command_gripper_state method when there is no gripper")
+        if not (0 <= state <= 1):
+            raise ValueError(f"Normalized gripper value must be in [0,1], got {state}")
 
-        arm_pos = self.get_joint_state_arm()
-        error = pose_ref - arm_pos 
-        error_wrapped = (error + np.pi) % (2 * np.pi) - np.pi   # Normalize error to [-π, π] range
+        # convert normalized value to raw value
+        open_angle, close_angle = self._gripper_open_close
+        gripper_raw = state * (close_angle - open_angle) + open_angle
+
+        # set actuators
+        joint_raw = self._driver.get_joints()[:self.num_dofs()]
+        all_raw : np.ndarray = np.append(joint_raw, gripper_raw)
+        self._driver.set_joints(all_raw.tolist())
+        
+    def _get_wrapped_error(self, pose_ref : np.ndarray) -> np.ndarray:
+        """Returns the wrapped error between current arm pose and reference pose, in radians."""
+        # get raw error
+        assert pose_ref.size == self.num_dofs() # pose_ref is desired positions (rad)
+        arm_pos = self.get_joint_state()
+        error = pose_ref - arm_pos
+
+        # return wrapped error
+        error_wrapped = (error + np.pi) % (2 * np.pi) - np.pi   # wrapped error is in [-π, π] range
         assert np.all((-np.pi <= error_wrapped) & (error_wrapped <= np.pi)) 
-
         return error_wrapped
     
-    def _check_alignment(self, pose_ref : np.ndarray) -> bool:
-        """Checks if the robot aligns with a reference pose within some margin of error  
-        
-        :param print_error: whether to print an error table
-        :param pose_ref: arm joint values to align to, in radians.
-        :return: True if pose approximately matches; False otherwise
+    def _get_alignment(self, pose_ref : np.ndarray) -> bool:
+        """Checks if arm joints are aligned with a reference pose within some margin of error. 
+        Returns True if pose approximately matches; False otherwise
         """
+        # set margin
         ERROR_MARGIN = np.pi/6
         assert 0 < ERROR_MARGIN < np.pi
         
-        # Check arm joints
-        error = self._check_wrapped_error(pose_ref)        
+        # check if joints within margin
+        error = self._get_wrapped_error(pose_ref)        
         error_abs = np.abs(error)
         within_bounds = bool(np.all(error_abs <= ERROR_MARGIN))
-        arm_pos = self.get_joint_state_arm()
+        arm_pos = self.get_joint_state()
         
-        # Move cursor up before printing
-        if self._table_alr_printed:
+        # move cursor up for table reprint
+        if self._table_printed:
             print(f"\033[{len(arm_pos) + 6}A", end="") 
         
+        # print table
         print("=" * 75) 
         print("REAL-TIME JOINT ERROR MONITORING")
         print("=" * 75)
         print(f"{'Joint':>6} | {'Target (°)':>10} | {'Actual (°)':>10} | {'Error (°)':>10} | {'Error (rad)':>12}")
         print("-" * 75)
-        
         for i in range(len(arm_pos)):
             id = self._joint_ids[i]                
             target_deg = np.degrees(pose_ref[i])
@@ -222,171 +228,168 @@ class DynamixelRobot(Robot):
             error_deg = np.rad2deg(error[i])
             error_rad = error[i]
             print(f"{id:6d} | {target_deg:10.1f} | {actual_deg:10.1f} | {error_deg:10.1f} | {error_rad:12.2f}")
-
+        
+        # print feedback line
         msg = (f"Close to reference position, keep arm stable" if within_bounds 
             else f"Arm deviation too far. Keep all joint errors below {np.rad2deg(ERROR_MARGIN):.1f}°")
-        
         print(f"{msg}", end="\033[K\n") # \033[K ANSI code clears from cursor to end of line,
 
-        self._table_alr_printed = True
+        # note table print
+        self._table_printed = True
 
+        # return align status
         return within_bounds
         
     def calibrate(self, pose_ref: np.ndarray) -> bool:
         '''Runs a loop checking if arm joints are close to the reference pose provided. 
         If it is, calibration is done. A 30s timeout exists.
 
-        :param pose_ref: joint values to align to, in radians. Gripper value, if provided, will be ignored.
-        ''' 
-        valid_sizes = (self.num_dofs(), self.num_dofs() + 1)
-            
-        assert pose_ref.size in valid_sizes, (f"Invalid pose size: {pose_ref.size}. "
-                                              f"Expected size(s) of {valid_sizes}")
-    
-        if pose_ref.size != self.num_dofs():
-            print("warning: wrong size provided")
-            print(f"Using only the first {self.num_dofs()} joint values.")
-            pose_ref = pose_ref[:-1]    
+        :param pose_ref: joint values to align to, in radians.
 
+        Returns True if calubration succesfull; False otherwise
+        ''' 
+        # validate input
+        if pose_ref.size != self.num_dofs():            
+            raise ValueError(f"Invalid pose size: {pose_ref.size}. Expected size of {self.num_dofs()}")
+
+        # set timer settings
         TIMEOUT = 30.0
-        STABLE_TIME = 1.0
+        STABLE_TIME = 1.0   # time to wait while stable before exit 
         t_start = time.time()
         t_stable = None
 
+        # run timer loop
         while True:
             if time.time() - t_start > TIMEOUT:
                 print(f"Calibration time outed at {TIMEOUT} s")
                 return False
-            
-            if not self._check_alignment(pose_ref):     # not aligned
+            # not aligned
+            if not self._get_alignment(pose_ref):
                 t_stable = None
                 time.sleep(0.05)
                 continue
-            
-            if t_stable is None:    # aligned
+            # aligned
+            if t_stable is None:
                 t_stable = time.time()
-            
             if time.time() - t_stable >= STABLE_TIME:
                 break
-            
             time.sleep(0.05)
 
-        if self._set_joint_offsets(pose_ref) == True:
-            print("Calibration successful")
-            return True
-        else:
+        # calibrate on stable
+        calibrated = self._set_joint_offsets(pose_ref)        
+        if not calibrated:
             print("Calibration failed")
-            return False        
+
+        # return outcome
+        return calibrated     
     
     def _set_joint_offsets(self, pose_ref : np.ndarray) -> bool:
-        """Finds amount of 2π wraps and sets offsets as it. Actual pose has to approximately match reference pose.
-
-        :param pose: arm joint values to align to, in radians.
-        :return: True if offsets were successfully determined and applied, False otherwise.
+        """Finds amount of 2π wraps and sets offsets as it. Actual pose has to approximately match reference pose. 
+        Returns True if offsets were successfully determined and applied, False otherwise.
         """
-        assert pose_ref.size == self.num_dofs(), \
-            f"Expected {self.num_dofs()} reference positions for arm joints, got {pose_ref.size}"
-        
-        aligned = self._check_alignment(pose_ref) 
-
-        if not aligned:
+        # ensure aligned before proceeding
+        assert pose_ref.size == self.num_dofs()        
+        if self._get_alignment(pose_ref) == False:
             print("Robot must be at reference pose before calling set_joint_offsets")
             self._is_calibrated = False
             return False
- 
-        arm_pos = self.get_joint_state_arm()
+
+        # set joint offset
+        arm_pos = self.get_joint_state()
         error = pose_ref - arm_pos
         wrap_count = np.round(error / (2 * np.pi))
         offsets =  wrap_count * (2 * np.pi)
         self._joint_offsets = offsets
-        
         self._is_calibrated = True
-
         return True
         
     def set_torque_mode(self, mode: bool):
         """Enables/disables controls."""
         if mode == self._torque_on:
             return
-            
         self._driver.set_torque_mode(mode)
         self._torque_on = mode
 
-    def get_observations(self) -> Dict[str, np.ndarray]:
-        """Read the positions of all actuators, including that of gripper included (if any).
+    def get_observations(self) -> Dict:
+        """Read the positions of all actuators, including normalized gripper value (if any).
 
         Returns:
             Dictionary of joint positions in radians. If gripper is present,
             the last element is normalized to [0,1] where 0 = fully open,
             1 = fully closed.
         """
-        return {"joint_state": self.get_joint_state()}
+        return {"all_state": self.get_joint_state(),
+                "joint_state": self.get_joint_state(),
+                "gripper_state": self.get_gripper_state(),}
 
-    def print_state(self):
-        
-        q = np.rad2deg(self.get_joint_state_arm())
+    def print_status(self):
+        """Prints robot status"""
+        q = np.rad2deg(self.get_joint_state())
         gripper = self.get_gripper_state()
-        
         joint_str = "Joints: "
         for i, angle in enumerate(q):
             joint_str += f"J{i+1}: {angle:6.1f}°  "
-        
         gripper_str = "Gripper: Not available" if gripper == None else\
               f"Gripper (0: open; 1: closed): {gripper:2.1f}"
-
         print(joint_str + " | " + gripper_str, end="\r")
 
 
     # FORCE CONTROL METHODS
-    #TODO - create a kinematics class to take in
-    def initialize_force(self, kinematics: ScaledURKinematics):
+    def initialize_force(self, kinematics: ScaledURKinematics): #TODO - create a kinematics class to take in
+        """Initialize this to use force control methods. """
         self._kin_model = kinematics
         self._tau_max = self._get_servo_torque_limit()
 
     def _get_servo_torque_limit(self) -> np.ndarray:
         """Returns the max torque (in Nm) each arm servo can exert. Shape: (num_dof,)"""
-        
+        # check prerequisites
         if isinstance(self._driver, FakeDynamixelDriver):
             raise RuntimeError("No torque limit for a fake driver")
-        
         if self._driver.torque_limit is None:
             raise RuntimeError("Torque limits not configured. " \
             "Initialize DynamixelRobot with servo_types parameter.") 
         
+        # return limits
         torque_limits = np.array(self._driver.torque_limit[:self.num_dofs()])
         assert torque_limits.shape == (self.num_dofs(), 1)
-
         return torque_limits
 
     
-    #TODO - singularity 
+    #TODO - handle singularity situations 
     def set_wrench(self, wrench: np.ndarray):
-        """Tries to set wrench"""
+        """Sets the joint torque necessary to produce a given wrench at the TCP.
+        If the wrench is too large, it is scaled down to a producable value.
 
-        # validate
+        :param wrench: [fx, fy, fz, mx, my, mz] (N and Nm) expressed in base frame.
+        """
+
+        # validate inputs
         if self._kin_model is None:
             raise RuntimeError("Getting wrench limit requires kinematic model which is not initialized. " \
             "Initialize DynamixelRobot with kin_model parameter.")    
-
         if self._tau_max is None:
             raise RuntimeError("Max torque is not set, cannot find attentuation factor.")
-
         if len(wrench) != 6:
             raise ValueError("Invalid input. wrench should be of len 6.")
-        
-        #
-        self.set_current_control_mode()
-        out = self._get_attentuated_torque_for_wrench(wrench)
-        factor, torque = out["factor"], out["torque"]     
-        print()
 
-        pass
+        # set torque
+        self._driver.verify_operating_mode(CURRENT_CONTROL_MODE)
+        out = self._get_attentuated_torque_for_wrench_at_TCP(wrench)
+        factor, torque = out["factor"], out["torque"]     
+        self.set_torque(torque)
+        
+        # print actual wrench
+        t = wrench  # target
+        a = wrench * factor     # actual
+        print(f"Target: [{t[0]:5.1f} {t[1]:5.1f} {t[2]:5.1f} | {t[3]:5.1f} {t[4]:5.1f} {t[5]:5.1f}]  "
+            f"Factor: {factor:.2f}  "
+            f"Actual: [{a[0]:5.1f} {a[1]:5.1f} {a[2]:5.1f} | {a[3]:5.1f} {a[4]:5.1f} {a[5]:5.1f}]")
     
-    def _get_attentuated_torque_for_wrench(self, wrench: np.ndarray) -> dict: 
+    def _get_attentuated_torque_for_wrench_at_TCP(self, wrench: np.ndarray) -> dict: 
         """Gets a scaled down wrench that is producable by the robot and the scale factor"""
         
         # finds theoretical required torque
-        q = self.get_joint_state_arm()
+        q = self.get_joint_state()
         assert self._kin_model is not None
         J = self._kin_model.get_jacobian_TCP(q)
         tau_req = J.T @ wrench
@@ -408,25 +411,29 @@ class DynamixelRobot(Robot):
         }
 
     def set_torque(self, torque: np.ndarray):
-        """Sets the torque of arm actuators.`"""
+        """Sets the torque of arm actuators."""
+        # validate input
         if len(torque) != self.num_dofs:
             raise ValueError("Torque provided is more than arm DOF.")
         
-        torque_processed = list(torque * self._joint_signs)
-        
+        # set torque
+        torque_processed = list(torque * self._joint_signs) # re
         if self._has_gripper:
             torque_processed.append(0)  # gripper servo is idle
-
-        if len(torque_processed) != self.num_actuators:
-            raise RuntimeError("Unexpected")
-
+        assert len(torque_processed) == self.num_actuators
         self._driver.set_torque(torque_processed)
     
     def set_current_control_mode(self):
-        from gello.dynamixel.driver import CURRENT_CONTROL_MODE
         self._driver.set_torque_mode(False)          # must disable torque to change mode
         self._driver.set_operating_mode(CURRENT_CONTROL_MODE)
         self._driver.set_torque_mode(True)           # re-enable torque in current mode
+
+    def set_position_control_mode(self):
+        self._driver.set_torque_mode(False)
+        self._driver.set_operating_mode(POSITION_CONTROL_MODE)
+        self._driver.set_torque_mode(True)
+
+    
 
 
 

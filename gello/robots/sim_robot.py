@@ -69,6 +69,45 @@ def build_scene(robot_xml_path: str, gripper_xml_path: Optional[str] = None):
     return arena
 
 
+
+
+def build_bimanual_scene(robot_configs: List[RobotConfig]) -> mjcf.RootElement:
+    """Build a MuJoCo scene with multiple robots."""
+    arena = mjcf.RootElement()
+    
+    # Add ground plane
+    arena.worldbody.add(
+        "geom",
+        name="ground",
+        type="plane",
+        size=[10, 10, 0.1],
+        rgba=[0.5, 0.5, 0.5, 1],
+    )
+    
+    # Add lighting
+    arena.worldbody.add("light", pos=[0, 0, 3], dir=[0, 0, -1])
+    
+    for i, config in enumerate(robot_configs):
+        # Load arm model
+        arm = mjcf.from_path(config.xml_path)
+        
+        # Attach gripper if specified
+        if config.gripper_xml_path:
+            gripper = mjcf.from_path(config.gripper_xml_path)
+            attach_hand_to_arm(arm, gripper, config.attachment_site)
+        
+        # Set robot position and orientation
+        arm.worldbody.pos = config.position
+        arm.worldbody.quat = config.quaternion
+        
+        # Give the robot a unique name prefix to avoid name collisions
+        arm.model = f"{config.name}_{i}"
+        
+        arena.worldbody.attach(arm)
+    
+    return arena
+
+
 class ZMQServerThread(threading.Thread):
     def __init__(self, server):
         super().__init__()

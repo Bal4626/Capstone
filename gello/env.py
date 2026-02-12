@@ -49,12 +49,12 @@ class RobotEnv:
         Returns:
             obs: observation from the environment.
         """
-        assert len(joints) == (
-            self._robot.num_dofs()
-        ), f"input:{len(joints)}, robot:{self._robot.num_dofs()}"
-        assert self._robot.num_dofs() == len(joints)
+        if len(joints) != self._robot.num_dofs():
+            raise ValueError(f"Number of joints values provided {joints} do not match robot DOF ({self._robot.num_dofs()})")
+        
         self._robot.command_joint_state(joints)
         self._rate.sleep()
+
         return self.get_obs()
 
     def get_obs(self) -> Dict[str, Any]:
@@ -76,13 +76,12 @@ class RobotEnv:
         observations["joint_positions"] = robot_obs["joint_positions"]
         observations["joint_velocities"] = robot_obs["joint_velocities"]
         observations["ee_pos_quat"] = robot_obs["ee_pos_quat"]
-        observations["gripper_position"] = robot_obs["gripper_position"]
-        
+
+        if "gripper_position" in robot_obs:
+            observations["gripper_position"] = robot_obs["gripper_position"]
         if "force" in robot_obs:    
             observations["force"] = robot_obs["force"]
-        else: 
-            pass
-
+        
         return observations
 
 

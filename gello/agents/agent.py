@@ -41,3 +41,4 @@ class BimanualAgent(Agent):
         return np.concatenate(
             [self.agent_left.act(left_obs), self.agent_right.act(right_obs)]
         )
+    

@@ -26,7 +26,7 @@ def launch_robot_server(args: Args):
         from gello.robots.sim_robot import MujocoRobotServer
 
         server = MujocoRobotServer(
-            xml_path=xml, gripper_xml_path=gripper_xml, port=port, host=args.hostname
+            xml_path=str(xml), gripper_xml_path=str(gripper_xml), port=port, host=args.hostname
         )
         server.serve()
     elif args.robot == "sim_yam":
@@ -37,7 +37,7 @@ def launch_robot_server(args: Args):
         from gello.robots.sim_robot import MujocoRobotServer
 
         server = MujocoRobotServer(
-            xml_path=xml, gripper_xml_path=None, port=port, host=args.hostname
+            xml_path=str(xml), gripper_xml_path=None, port=port, host=args.hostname
         )
         server.serve()
     elif args.robot == "sim_panda":
@@ -49,7 +49,7 @@ def launch_robot_server(args: Args):
         xml = MENAGERIE_ROOT / "franka_emika_panda" / "panda.xml"
         gripper_xml = None
         server = MujocoRobotServer(
-            xml_path=xml, gripper_xml_path=gripper_xml, port=port, host=args.hostname
+            xml_path=str(xml), gripper_xml_path=str(gripper_xml), port=port, host=args.hostname
         )
         server.serve()
     elif args.robot == "sim_xarm":
@@ -61,7 +61,7 @@ def launch_robot_server(args: Args):
         xml = MENAGERIE_ROOT / "ufactory_xarm7" / "xarm7.xml"
         gripper_xml = None
         server = MujocoRobotServer(
-            xml_path=xml, gripper_xml_path=gripper_xml, port=port, host=args.hostname
+            xml_path=str(xml), gripper_xml_path=str(gripper_xml), port=port, host=args.hostname
         )
         server.serve()
 

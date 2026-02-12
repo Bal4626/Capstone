@@ -11,14 +11,13 @@ class URRobot(Robot):
         import rtde_control
         import rtde_receive
 
-        [print("in ur robot") for _ in range(4)]
         try:
+            print("Attempting to conenct to UR robot")
             self.robot = rtde_control.RTDEControlInterface(robot_ip)
+            self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
         except Exception as e:
             print(e)
             print(robot_ip)
-
-        self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
 
         if not no_gripper:
             from gello.robots.robotiq_gripper import RobotiqGripper
@@ -28,7 +27,7 @@ class URRobot(Robot):
             # print("gripper connected")
             # self.gripper.activate()
 
-        [print("connect") for _ in range(   4)]
+        print("Connected to UR robot")
 
         self._free_drive = False
         self.robot.endFreedriveMode()

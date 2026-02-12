@@ -16,7 +16,7 @@ DEFAULT_MAX_JOINT_DELTA = 1.0
 def move_to_start_position(
     env: RobotEnv, agent: Agent, max_delta: float = 1.0, steps: int = 25
 ) -> bool:
-    """Move robot to start position gradually.
+    """Move follower robot to agent position gradually.
 
     Args:
         env: Robot environment
@@ -68,6 +68,54 @@ def move_to_start_position(
 
     return True
 
+def move_env_to_target_position(
+    env: RobotEnv, target_position: np.ndarray, max_delta: float = 1.0, steps: int = 25
+) -> None:
+    """Move follower robot to target position gradually.
+
+    Args:
+        env: Robot environment
+        target_position: Desired joint positions to move to
+        max_delta: Maximum joint delta per step
+        steps: Number of steps for gradual movement
+
+    Raises:
+        RuntimeError: If joint differences exceed DEFAULT_MAX_JOINT_DELTA
+    """
+    print("Moving robot to start position")
+    obs = env.get_obs()
+    joints = obs["joint_positions"]
+
+    abs_deltas = np.abs(target_position - joints)
+    id_max_joint_delta = np.argmax(abs_deltas)
+
+    if abs_deltas[id_max_joint_delta] > DEFAULT_MAX_JOINT_DELTA:
+        id_mask = abs_deltas > DEFAULT_MAX_JOINT_DELTA
+        error_msg = "\nCannot move to start position - joint differences too large:\n"
+        ids = np.arange(len(id_mask))[id_mask]
+        for i, delta, target, current_j in zip(
+            ids,
+            abs_deltas[id_mask],
+            target_position[id_mask],
+            joints[id_mask],
+        ):
+            error_msg += (
+                f"  joint[{i}]: delta: {delta:4.3f} (max: {DEFAULT_MAX_JOINT_DELTA}), "
+                f"target: {target:4.3f}, current: {current_j:4.3f}\n"
+            )
+        raise RuntimeError(error_msg)
+
+    print(f"Target pos: {len(target_position)}", f"Current joints: {len(joints)}")
+    assert len(target_position) == len(joints), f"target dim = {len(target_position)}, but env dim = {len(joints)}"
+
+    current_pos = joints.copy()
+    for _ in range(steps):
+        delta = target_position - current_pos
+        max_joint_delta = np.abs(delta).max()
+        if max_joint_delta > max_delta:
+            delta = delta / max_joint_delta * max_delta
+        current_pos = current_pos + delta
+        env.step(current_pos)
 
 class SaveInterface:
     """Handles keyboard-based data saving interface."""
@@ -150,10 +198,11 @@ def run_control_loop(
     """
     # Check if we can use colors
     colors_available = False
+    colored = None  # Define colored in outer scope
+    
     if use_colors:
         try:
             from termcolor import colored
-
             colors_available = True
             start_msg = colored("\nStart 🚀🚀🚀", color="green", attrs=["bold"])
         except ImportError:
@@ -170,8 +219,8 @@ def run_control_loop(
         if print_timing:
             num = time.time() - start_time
             message = f"\rTime passed: {round(num, 2)}          "
-
-            if colors_available:
+        
+            if colors_available and colored is not None:  # Check colored exists
                 print(
                     colored(message, color="white", attrs=["bold"]), end="", flush=True
                 )
