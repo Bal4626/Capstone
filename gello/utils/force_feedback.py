@@ -64,7 +64,7 @@ def force_feedback(agent, obs, arm_index: int = 0, total_arms: int = 1):
     haptic_gain = 1  # set to 1 as the downscaling is done on external force in ur.py
     
     scaled_torques = haptic_gain * arm_torques * agent.joint_signs
-    scaled_torques = np.clip(scaled_torques, -0.08, 0.08)  # Nm
+    scaled_torques = np.clip(scaled_torques, -0.05, 0.05)  # Nm
     
     arm_name = "Left" if arm_index == 0 else "Right" if total_arms == 2 else "Single"
     print(f"{arm_name} scaled_torques: {np.round(scaled_torques, 3)}")
