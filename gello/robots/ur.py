@@ -19,7 +19,6 @@ class URRobot(Robot):
             print(e)
             print(robot_ip)
         self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
-        self.rtde_io = rtde_io.RTDEIOInterface(robot_ip)
 
         if not no_gripper:
             if gripper_type == "robotiq":
@@ -27,10 +26,11 @@ class URRobot(Robot):
                 self.gripper = RobotiqGripper()
                 self.gripper.connect(hostname=robot_ip, port=63352)
                 # print("gripper connected")
-                # self.gripper.activate()
+                self.gripper.activate()
             elif gripper_type == "digital":  # For EHPS16A
                 from gello.robots.digital_gripper import DigitalGripper
                 # Simple digital output control
+                self.rtde_io = rtde_io.RTDEIOInterface(robot_ip)
                 self.gripper = DigitalGripper(self.rtde_io)
             else:
                 raise ValueError(f"Unknown gripper type: {gripper_type}")
