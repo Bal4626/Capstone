@@ -83,8 +83,6 @@ class DynamixelRobot(Robot):
             # loop through all joints and add +- 2pi to the joint offsets to get the closest to start joints
             new_joint_offsets = []
             current_joints = self.get_joint_state()
-            print(current_joints)
-            print(start_joints)
             assert current_joints.shape == start_joints.shape
             if gripper_config is not None:
                 current_joints = current_joints[:-1]
@@ -107,6 +105,9 @@ class DynamixelRobot(Robot):
         return len(self._joint_ids)
 
     def get_joint_state(self) -> np.ndarray:
+        print(np.round(self._driver.get_joints(),3))
+        print(np.round(self._joint_offsets,3))
+        print(self._joint_signs)
         pos = (self._driver.get_joints() - self._joint_offsets) * self._joint_signs
         assert len(pos) == self.num_dofs()
 

@@ -25,7 +25,7 @@ class Args:
     joint_signs: Tuple[float, ...] = (1, 1, -1, 1, 1, 1)
     """The joint angles that the GELLO is placed in at (in radians)."""
 
-    gripper: bool = False
+    gripper: bool = True
     """Whether or not the gripper is attached."""
 
     def __post_init__(self):

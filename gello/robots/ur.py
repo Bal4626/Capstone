@@ -7,9 +7,10 @@ from gello.robots.robot import Robot
 class URRobot(Robot):
     """A class representing a UR robot."""
 
-    def __init__(self, robot_ip: str = "192.168.20.66", no_gripper: bool = True, robot_type = "ur5e" ,gripper_type = "robotiq"):
+    def __init__(self, robot_ip: str = "192.168.201.101", no_gripper: bool = False, robot_type = "ur5e" ,gripper_type = "robotiq"):
         import rtde_control
         import rtde_receive
+        import rtde_io
 
         [print("in ur robot") for _ in range(4)]
         try:
@@ -17,8 +18,8 @@ class URRobot(Robot):
         except Exception as e:
             print(e)
             print(robot_ip)
-
         self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
+        self.rtde_io = rtde_io.RTDEIOInterface(robot_ip)
 
         if not no_gripper:
             if gripper_type == "robotiq":
@@ -27,9 +28,14 @@ class URRobot(Robot):
                 self.gripper.connect(hostname=robot_ip, port=63352)
                 # print("gripper connected")
                 # self.gripper.activate()
+            elif gripper_type == "digital":  # For EHPS16A
+                from gello.robots.digital_gripper import DigitalGripper
+                # Simple digital output control
+                self.gripper = DigitalGripper(self.rtde_io)
             else:
-                from gello.robots.EHPS16A_gripper import EHPS16Gripper
-                self.gripper = EHPS16Gripper(robot_ip = robot_ip)
+                raise ValueError(f"Unknown gripper type: {gripper_type}")
+
+            
 
         [print("connect") for _ in range(   4)]
 
@@ -198,6 +204,8 @@ class URRobot(Robot):
         # Apply scaling to physical forces
         scale_matrix = np.diag([0.007, 0.007, 0.007, 0.007, 0.007, 0.007])  # diag([lin_scale, rot_scale])
         F_tcp_scaled = F_tcp @ scale_matrix
+        print(f"F_tcp: {np.round(F_tcp, 3)}")
+        print(f"F_tcp_scaled: {np.round(F_tcp_scaled, 3)}")
 
         # Get geometric Jacobian (6x6)
         J_tcp = self.ur_jacobian_base(q)  # maps joint vel to spatial twist at TCP
@@ -246,8 +254,8 @@ class URRobot(Robot):
 def main():
     import time
     import numpy as np
-    robot_ip = "192.168.20.25"
-    ur = URRobot(robot_ip, no_gripper=False)
+    robot_ip = "192.168.201.101"
+    ur = URRobot(robot_ip, no_gripper=True)
     # ur.robot.zeroFtSensor()
     while True:
         q = ur.get_joint_state()[:6]
@@ -256,9 +264,10 @@ def main():
         scale_matrix = np.diag([0.007, 0.007, 0.007, 0.001, 0.001, 0.001])  # diag([lin_scale, rot_scale])
         F_tcp_scaled = F_tcp @ scale_matrix
         print(ur.get_observations())
-        print("F before scale:", np.round(F_tcp, 3))
-        print("F after scale", np.round(F_tcp_scaled, 3))
-        print("Torques:", np.round(tau_ext, 3))
+        # print("F before scale:", np.round(F_tcp, 3))
+        # print("F after scale", np.round(F_tcp_scaled, 3))
+        # print("Torques:", np.round(tau_ext, 3))
+        print(ur)
 
         print("--------")
         time.sleep(0.5)

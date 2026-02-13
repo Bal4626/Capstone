@@ -35,7 +35,7 @@ def launch_robot_server(args: Args):
         if args.robot == "ur":
             from gello.robots.ur import URRobot
             print(args.robot_ip)
-            robot = URRobot(robot_ip=args.robot_ip)
+            robot = URRobot(robot_ip=args.robot_ip, robot_type = "ur3e", gripper_type="digital")
         elif args.robot == "bimanual_ur":
             from gello.robots.ur import URRobot
 

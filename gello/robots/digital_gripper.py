@@ -1,74 +1,66 @@
 import time
 from typing import Optional
 
-class EHPS16Gripper:
-    """Simple interface for EHPS16A gripper - just open and close."""
+class DigitalGripper:
+    """Simple interface for EHPS16A gripper using RTDE for digital output control."""
     
-    def __init__(self, robot_ip: str = "192.168.20.65", port: Optional[int] = None):
-        """Initialize EHS16 gripper connection.
+    def __init__(self, rtde_io):
+        """Initialize EHS16 gripper connection using existing RTDEIOInterface.
         
         Args:
-            robot_ip: IP address of the UR robot
-            port: Not used for EHS16, kept for compatibility with Robotiq interface
+            rtde_io: Existing RTDEIOInterface instance
         """
-        import urx
-        self.robot_ip = robot_ip
-        self.robot = urx.Robot(robot_ip)
+        self.rtde_io = rtde_io
         self._connected = True
-        print(f"Connected to EHS16 gripper via UR robot at {robot_ip}")
         
         # Gripper position range (0-255 for compatibility with Robotiq interface)
         self._min_position = 0      # Open position
         self._max_position = 255    # Closed position
+        self._current_position = self._min_position
+        self._is_closed = False
         
         # Initialize gripper to open position
         self.open()
 
+
     def connect(self, hostname: Optional[str] = None, port: Optional[int] = None, 
                 socket_timeout: float = 10.0) -> None:
-        """Connect to the gripper (kept for compatibility with Robotiq interface).
-        
-        Args:
-            hostname: Hostname or IP (overrides robot_ip if provided)
-            port: Not used for EHS16
-            socket_timeout: Not used for EHS16
-        """
-        if hostname and hostname != self.robot_ip:
-            # Reconnect with new IP if different
-            self.disconnect()
-            self.robot_ip = hostname
-            import urx
-            self.robot = urx.Robot(hostname)
-            print(f"Reconnected to EHS16 gripper via UR robot at {hostname}")
+        """Connect to the gripper (kept for compatibility)."""
         self._connected = True
 
     def disconnect(self) -> None:
         """Disconnect from the gripper."""
         if self._connected:
             self.release()  # Release gripper signals
-            self.robot.close()
             self._connected = False
-            print("Disconnected from EHS16 gripper")
 
     def open(self):
-        """Open the gripper."""
-        # Open gripper: DO[0] = True, DO[2] = False
-        self.robot.set_digital_out(2, False)
-        self.robot.set_digital_out(0, True)
-        self._current_position = self._min_position
-    
+        if self._is_closed:
+            """Open the gripper."""
+            # Open gripper: DO[0] = True, DO[2] = False
+            self.rtde_io.setStandardDigitalOut(2, False)
+            time.sleep(0.01)
+            self.rtde_io.setStandardDigitalOut(0, True)
+            self._current_position = self._min_position
+            self._is_closed = False
+
     def close(self):
-        """Close the gripper."""
-        # Close gripper: DO[2] = True, DO[0] = False
-        self.robot.set_digital_out(0, False)
-        self.robot.set_digital_out(2, True)
-        self._current_position = self._max_position
+        if not self._is_closed: #only triggers when gripper is open
+            """Close the gripper."""
+            # Close gripper: DO[2] = True, DO[0] = False
+            self.rtde_io.setStandardDigitalOut(0, False)
+            time.sleep(0.01)  # Small delay for signal to take effect
+            self.rtde_io.setStandardDigitalOut(2, True)
+            self._current_position = self._max_position
+            self._is_closed = True
     
     def release(self):
         """Release both signals (returns to open position if spring-loaded)."""
-        self.robot.set_digital_out(2, False)
-        self.robot.set_digital_out(0, False)
+        self.rtde_io.setStandardDigitalOut(2, False)
+        self.rtde_io.setStandardDigitalOut(0, False)
+        time.sleep(0.05)
         self._current_position = self._min_position 
+        self._is_closed = False
 
     def get_current_position(self) -> int:
         """Get the current gripper position (0-255).
@@ -100,31 +92,17 @@ class EHPS16Gripper:
         else:
             self.close()
         
-        self._current_position = self._min_position if position <= threshold else self._max_position
         return True, self._current_position
-
-    def move_and_wait_for_pos(self, position: int, speed: int, force: int) -> tuple:
-        """Move gripper to position and wait.
-        
-        Args:
-            position: Target position (0-255)
-            speed: Not used for EHS16
-            force: Not used for EHS16
-            
-        Returns:
-            tuple: (final_position, status)
-        """
-        # EHS16 is binary, so we use move and add a small delay
-        success, actual_pos = self.move(position, speed, force)
-        time.sleep(0.5)  # Wait for gripper to actuate
-        return actual_pos, 3  # Status 3 = at destination (for compatibility)
-
+    
 # Simple usage example
 if __name__ == "__main__":
     # Test the gripper
-    gripper = EHPS16Gripper(robot_ip ="192.168.201.101")
+    import rtde_io
     
     try:
+        rtde_io_interface = rtde_io.RTDEIOInterface("192.168.201.101")
+        gripper = DigitalGripper(rtde_io_interface)
+        
         # Test open/close cycle
         print("Testing EHS16 gripper...")
         
@@ -150,3 +128,4 @@ if __name__ == "__main__":
         
     finally:
         gripper.disconnect()
+        rtde_io_interface.disconnect()

@@ -73,7 +73,7 @@ def force_feedback(agent, obs, arm_index: int = 0, total_arms: int = 1):
     if hasattr(agent, 'set_agent_torque'):
         try:
             # Append 0 torque for gripper if there is gripper
-            if len(agent._robot.joint_ids) > 6:
+            if len(agent._robot._joint_ids) > 6:
                 torque_command = np.append(scaled_torques, 0)
             agent.set_agent_torque(torque_command)  # type: ignore
         except Exception as e:
