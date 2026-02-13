@@ -1,16 +1,23 @@
+
 from typing import Dict
 
 import numpy as np
 
 from gello.robots.robot import Robot
+from dashboard_client import DashboardClient
+import time
+import rtde_control
+import rtde_receive
+import rtde_io
+import traceback
+
 
 class URRobot(Robot):
     """A class representing a UR robot."""
 
     def __init__(self, robot_ip: str = "192.168.201.101", no_gripper: bool = False, robot_type = "ur5e" ,gripper_type = "robotiq"):
-        import rtde_control
-        import rtde_receive
-        import rtde_io
+
+        self.robot_ip = robot_ip
 
         [print("in ur robot") for _ in range(4)]
         try:
@@ -81,11 +88,15 @@ class URRobot(Robot):
         return pos
 
     def command_joint_state(self, joint_state: np.ndarray) -> None:
+
+        if not self._ensure_control():
+            return
         """Command the leader robot to a given state.
 
         Args:
             joint_state (np.ndarray): The state to command the leader robot to.
         """
+        self.checkprotective_n_clear()
         velocity = 0.5
         acceleration = 0.5
         dt = 1.0 / 500  # 2ms
@@ -93,14 +104,18 @@ class URRobot(Robot):
         gain = 100
 
         robot_joints = joint_state[:6]
+
+        print("aaa")
         t_start = self.robot.initPeriod()
-        self.robot.servoJ(
-            robot_joints, velocity, acceleration, dt, lookahead_time, gain
-        )
+        print("bbb")
+        self.robot.servoJ(robot_joints, velocity, acceleration, dt, lookahead_time, gain)
+        print("ccc")
         if self._use_gripper:
             gripper_pos = joint_state[-1] * 255
             self.gripper.move(gripper_pos, 255, 10)
+        print("ddd")
         self.robot.waitPeriod(t_start)
+        print("eee")
 
     def freedrive_enabled(self) -> bool:
         """Check if the robot is in freedrive mode.
@@ -231,12 +246,116 @@ class URRobot(Robot):
         else:
             vel = robot_joints_velocities
         return vel 
+    
+    def _ensure_control(self) -> bool:
+        """Ensure RTDEControlInterface exists and is running."""
+        try:
+            if getattr(self, "robot", None) is None:
+                self.robot = rtde_control.RTDEControlInterface(self.robot_ip)
+            return True
+        except Exception as e:
+            print("Failed to (re)create RTDE control:", e)
+            self.robot = None
+            return False
+    
+    def checkprotective_n_clear(self):
+        try:
+            bits = self.r_inter.getSafetyStatusBits()
+            bit2 = (bits >> 2) & 1   # IS_PROTECTIVE_STOPPED
+            print(f"{bits:010b}")
+            print("bit2 =", bit2)
+
+            if bit2 == 0:
+                return False  # no protective stop
+
+            # 1) Wait a bit after collision (UR requires ~5s)
+            time.sleep(5)
+
+            # 2) Clear popup + unlock
+            try:
+                self.dash.closeSafetyPopup()
+                self.dash.unlockProtectiveStop()
+            except Exception:
+                # reconnect dashboard if needed
+                try:
+                    self.dash.disconnect()
+                except Exception:
+                    pass
+                self.dash = DashboardClient(self.robot_ip)
+                self.dash.connect()
+                self.dash.closeSafetyPopup()
+                self.dash.unlockProtectiveStop()
+
+            # 3) Wait until safety bit clears (bounded)
+            for _ in range(100):  # 10s max
+                if not self.r_inter.isProtectiveStopped():
+                    break
+                time.sleep(0.1)
+
+            # 4) Start the program again if not running (ExternalControl / last URP)
+            if not self.dash.running():
+                def recreate_control():
+                    try:
+                        if self.robot is not None:
+                            self.robot.stopScript()
+                    except Exception:
+                        pass
+                    time.sleep(0.2)
+                    try:
+                        self.robot = None
+                    except Exception:
+                        pass
+                    self.robot = rtde_control.RTDEControlInterface(self.robot_ip)
+
+            ok = self.robot.reuploadScript()
+            print("Reupload:", ok)
+            if not ok:
+                print("Still no RTDE control script – need to press PLAY on pendant / check program.")
+                return False
+                # time.sleep(2)  # wait a bit before starting
+
+                # try:
+                #     result = self.dash.play()
+                #     print("Dashboard play():", result)
+                # except Exception as e:
+                #     traceback.print_exc()
+                #     print("Dashboard play failed:", e)
+                #     print("Recreating control + dashboard objects and retrying play().")
+                #     recreate_control()
+                #     self.dash = DashboardClient(self.robot_ip)
+                #     self.dash.connect()
+                #     try:
+                #         self.dash.closeSafetyPopup()
+                #         self.dash.unlockProtectiveStop()
+                #         time.sleep(0.5)
+                #         result = self.dash.play()
+                #         print("Dashboard play() retry:", result)
+                #     except Exception as e2:
+                #         print("Second play() failed:", e2)
+                #         print("Manual pendant play may be required.")
+                #         return False
+
+            # Kick controller once
+            q = self.r_inter.getActualQ()
+            if self._ensure_control():
+                try:
+                    self.robot.servoJ(q, 0.1, 0.1, 1/500, 0.2, 100)
+                except Exception as e:
+                    print("Recovery servo failed:", e)
+                    return False
+            print("Recovery complete.")
+            return True
+        except Exception as e:
+            traceback.print_exc()
+            print("Protective stop auto-recovery failed:", e)
+            return False
 
 
     def get_observations(self) -> Dict[str, np.ndarray]:
         joints = self.get_joint_state()
         # print("ur5 joints:", joints) # we added this line
         pos_quat = np.zeros(7)
+        self.checkprotective_n_clear()
 
         # gripper_pos = np.array([joints[-1]])
         forces = self.get_forces()
