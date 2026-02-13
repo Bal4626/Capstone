@@ -109,6 +109,7 @@ class GelloAgent(Agent):
             assert port in PORT_CONFIG_MAP, f"Port {port} not in config map"
 
             config = PORT_CONFIG_MAP[port]
+
             self._robot = config.make_robot(port=port, start_joints=start_joints)
             #store joint signs
             self.joint_signs = np.array(config.joint_signs)

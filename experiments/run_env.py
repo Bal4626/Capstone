@@ -101,12 +101,12 @@ def main(args):
                 "agent_left": {
                     "_target_": "gello.agents.gello_agent.GelloAgent",
                     "port": left,
-                    "start_joints": (-1.57, -1.57, -1.57, -1.57, 1.57, 0)
+                    "start_joints": (1.57, -1.57, 1.57, -1.57, -1.57, 0, 0)
                 },
                 "agent_right": {
                     "_target_": "gello.agents.gello_agent.GelloAgent",
                     "port": right,
-                    "start_joints":(1.57, -1.57, 1.57, -1.57, -1.57, 0)
+                    "start_joints":(-1.57, -1.57, -1.57, -1.57, 1.57, 0, 0)
                 },
             }
 
@@ -115,8 +115,9 @@ def main(args):
 
         # System setup specific. This reset configuration works well on our setup. If you are mounting the robot
         # differently, you need a separate reset joint configuration.
-        reset_joints_left = np.deg2rad([-90, -90, -90, -90, 90, 0, 0])
-        reset_joints_right = np.deg2rad([90, -90, 90, -90, -90, 0, 0])
+        reset_joints_left = np.deg2rad([90, -90, 90, -90, -90, 0, 0])
+        reset_joints_right = np.deg2rad([-90, -90, -90, -90, 90, 0, 0])
+
         reset_joints = np.concatenate([reset_joints_left, reset_joints_right])
         curr_joints = env.get_obs()["joint_positions"]
         max_delta = (np.abs(curr_joints - reset_joints)).max()
@@ -144,7 +145,7 @@ def main(args):
             }
             if args.start_joints is None:
                 reset_joints = np.deg2rad(
-                    [90, -90, 90, -90, -90, 0]
+                    [90, -90, 90, -90, -90, 0, 0]
                 )  # Change this to your own reset joints for the starting position
                 
             else:
