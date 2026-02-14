@@ -15,6 +15,7 @@ from gello.utils.kinematics import ScaledURKinematics
 
 # arm specific settings
 PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
+    # ur5e at corner
     "/dev/ttyUSB0": DynamixelRobotConfig(
         joint_ids=(1, 2, 3, 4, 5, 6),
         joint_signs=(1, 1, -1, 1, 1, 1),
@@ -22,6 +23,26 @@ PORT_CONFIG_MAP: Dict[str, DynamixelRobotConfig] = {
         
         gripper_config=(7, 20, -30),
         kinematics=ScaledURKinematics("ur5e", 0.518)
+    ),
+
+    #ur3e left
+    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0": DynamixelRobotConfig(
+        joint_ids=(1, 2, 3, 4, 5, 6),
+        joint_signs=(1, 1, -1, 1, 1, 1),
+        servo_types=("XL330_M288",) * 6,
+
+        gripper_config=(7, 20, -30),
+        kinematics=ScaledURKinematics("ur3e", 0.518)
+    ),
+    
+    #ur3e right 
+    "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0": DynamixelRobotConfig(
+        joint_ids=(1, 2, 3, 4, 5, 6),
+        joint_signs=(1, 1, -1, 1, 1, 1),
+        servo_types=("XL330_M288",) * 6,
+
+        gripper_config=(7, 20, -30),
+        kinematics=ScaledURKinematics("ur3e", 0.518)
     )
 }
 
@@ -61,27 +82,28 @@ class GelloAgent(Agent):
             wrench = obs["wrench"]
             self._robot.set_wrench(wrench)
         else:
-            print("alert: [wrench] key not in obs dict, cannot do perform force control")
+            pass
+            #print("alert: [wrench] key not in obs dict, cannot do perform force control")
 
         # apply gravity compensation 
         # TODO
 
-        # return 
         return self._robot.get_joint_state()
-
+  
+    
     def move(self, joint_state: np.ndarray):
         raise NotImplementedError
                          
-    def home(self, home_pos: np.ndarray, hold: bool=True):
+    def home(self, home_pos: np.ndarray, hold: bool=False):
         '''Requires user to guide arm to specified position.
         Homing needs to be done once before other activities.
         A 30s timeout exists.
 
-        :param home_pos: joint values (rad) to align to.
+        :param home_pos: arm joint values (rad) to align to.
         :param hold: holds arm in position if calibration is successful  
         '''
         # validate input/state 
-        if len(home_pos) != self._robot.num_dofs:
+        if len(home_pos) != self._robot.num_dofs():
             raise ValueError(f"Expected {self._robot.num_dofs()} joints values, got {len(home_pos)}")
         if self._robot.is_calibrated():
             print("Already calibrated")

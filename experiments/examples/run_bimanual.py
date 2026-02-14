@@ -5,20 +5,19 @@ from gello.robots.robot import BimanualRobot
 from gello.zmq_core.robot_node import ZMQServerRobot, ZMQClientRobot
 from gello.agents.gello_agent import GelloAgent
 from gello.agents.agent import BimanualAgent
-from gello.utils.control_utils import move_env_to_target_position
 
 # robot ips (modify accordingly)
-ROBOT_IP_LEFT: str = "192.168.2.10"
-ROBOT_IP_RIGHT: str = "192.168.1.10"
+ROBOT_IP_LEFT: str = "192.168.20.65"
+ROBOT_IP_RIGHT: str = "192.168.20.66"
 
 # Home positions for bimanual UR arms
-HOME_POS_LEFT = np.deg2rad([-90, -90, -90, -90, 90, 0])
-HOME_POS_RIGHT = np.deg2rad([90, -90, 90, -90, -90, 0])
+HOME_POS_LEFT = np.deg2rad([90, -90, 90, -90, -90, 0])
+HOME_POS_RIGHT = np.deg2rad([-90, -90, -90, -90, 90, 0])
 HOME_POS_BIMANUAL = np.concatenate([HOME_POS_LEFT, HOME_POS_RIGHT])
 
 # GELLO ports for bimanual setup
-GELLO_PORT_LEFT = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0"
-GELLO_PORT_RIGHT = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0"
+GELLO_PORT_LEFT = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTA7NN69-if00-port0"
+GELLO_PORT_RIGHT = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5LY0-if00-port0"
 
 def start_bimanual_ur_server(
     robot_left: URRobot, 
@@ -88,9 +87,6 @@ def main():
     agent_left.home(HOME_POS_LEFT)
     agent_right.home(HOME_POS_RIGHT)
 
-    # home bimanual arms
-    move_env_to_target_position(env, HOME_POS_BIMANUAL)
-    
     # run control loop
     obs = env.get_obs()    
     while True:

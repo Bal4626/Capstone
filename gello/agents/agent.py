@@ -42,3 +42,25 @@ class BimanualAgent(Agent):
             [self.agent_left.act(left_obs), self.agent_right.act(right_obs)]
         )
     
+    def home(self, l_home_pos: np.ndarray, r_home_pos, hold: bool=False):
+        '''Requires user to guide arm to specified position.
+        Homing needs to be done once before other activities.
+        A 30s timeout exists.
+
+        :param l_home_pos: left arm's joint values (rad) to align to.
+        :param r_home_pos: right arm's joint values (rad) to align to.
+        :param hold: holds arm in position if calibration is successful  
+        '''
+        # validate input/state 
+        if len(home_pos) != self._robot.num_dofs():
+            raise ValueError(f"Expected {self._robot.num_dofs()} joints values, got {len(home_pos)}")
+        if self._robot.is_calibrated():
+            print("Already calibrated")
+            return
+        
+        # calibrate
+        calibrated = self._robot.calibrate(home_pos)
+        if calibrated and hold:
+            self._robot.set_position_control_mode()
+            self._robot.set_torque_mode(True)   # TODO fix this functionality
+    

@@ -13,7 +13,7 @@ from gello.agents.gello_agent import GelloAgent
 from gello.utils.control_utils import move_env_to_target_position
 
 # robot ip (modify accordingly)
-robot_ip: str = "192.168.1.10"
+robot_ip: str = "192.168.20.65"
 joints_home = np.deg2rad([90, -90, 90, -90, -90, 0])
 gello_port = "/dev/ttyUSB0"
 
@@ -66,9 +66,6 @@ def main():
     # create and connect to GELLO arm
     agent = GelloAgent(port=gello_port)
     
-    # home ur arm
-    move_env_to_target_position(env, joints_home)
-
     # home GELLO arm
     agent.home(joints_home)
     

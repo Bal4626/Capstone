@@ -27,9 +27,9 @@ class DynamixelRobot(Robot):
         gripper_config: Optional[Tuple[int, float, float]] = None,
         ):  
         """Initializes a Dynamixel robot. 
-        The gripper is only initialized when gripper_config is provided.   
         
         :param joint_ids: List of Dynamixel motor IDs for the arm joints
+        The gripper is only initialized when gripper_config is provided.   
         :param joint_signs: Direction multipliers (1 or -1) for each arm joint
         :param servo_types: List of servo models at arm joints 
         :param real: Whether to use real hardware or simulation
@@ -45,42 +45,39 @@ class DynamixelRobot(Robot):
             raise ValueError("joint_signs and servo_types length must match")
         if not np.all(np.abs(joint_signs) == 1):
             raise ValueError("joint_signs must be 1 or -1")
-        
+        assert len(joint_ids) == self.num_dofs()    # GELLO has 6
+
         # initialize fields 
         self._joint_ids = tuple(joint_ids)
         self._joint_offsets = np.zeros(len(joint_ids))
         self._joint_signs = np.array(joint_signs)
         self._has_gripper = False if gripper_config is None else True
-        self._ids = tuple(joint_ids) if gripper_config is None \
-                        else tuple(joint_ids) + (gripper_config[0],)
+        self._all_ids = tuple(joint_ids) if gripper_config is None \
+                        else tuple(joint_ids) + (gripper_config[0],)    # id of all actuators on the arm
         self._gripper_open_close = None if gripper_config is None \
                         else (np.deg2rad(gripper_config[1]), np.deg2rad(gripper_config[2])) 
-        self._driver = DynamixelDriver(self._ids, port=port, baudrate=baudrate, servo_types=servo_types) if real \
-                        else FakeDynamixelDriver(self._ids)
+        self._driver = DynamixelDriver(self._all_ids, port=port, baudrate=baudrate, servo_types=servo_types) if real \
+                        else FakeDynamixelDriver(self._all_ids)
         self._torque_on = False
         self._last_pos = None
         self._alpha = 0.99
-        self._table_printed = False
         self._is_calibrated = False
 
         # check for driver and input consistency 
-        if len(self._driver.get_joints()) != self.num_actuators():
-            raise RuntimeError(f"Driver found {len(self._driver.get_joints())} actuators but expected {self.num_actuators()}")
+        if len(self._driver.get_joints()) != len(self._all_ids):
+            raise RuntimeError(f"Driver found {len(self._driver.get_joints())} actuators but expected {self.num_dofs()}")
         
         # set to current mode 
         self.set_current_control_mode()
 
         # allow freedrive
-        self._driver.set_torque_mode(False)
+        self._driver.set_torque_mode(False) 
 
     def num_dofs(self) -> int:
-        """Return number of degrees of freedom of the robotic arm."""
-        return len(self._joint_ids)
-
-    def num_actuators(self) -> int:
-        """Return number of actuators."""
-        return self.num_dofs() + int(self.has_gripper())
-
+        """Gets the degree of freedom of the dynamixel arm."""
+        # NOTE: is actually number total number of controllable actuators 
+        return 6    # len(self._joint_ids)
+    
     def has_gripper(self) -> bool:
         """Returns whether robot was initialized with gripper."""
         return self._has_gripper
@@ -99,14 +96,14 @@ class DynamixelRobot(Robot):
             self._last_pos = smoothed_positions
             return smoothed_positions
 
-    def _get_joint_state(self) -> np.ndarray:
+    def get_joint_state(self) -> np.ndarray:
         """Returns the positions of all actuators. 
         If gripper is present, the last element is normalized to [0,1] where 0=fully open, 1=fully closed.
         """
-        # require calibration
-        if self._is_calibrated == False:
-            raise RuntimeError("Arm is not calibrated. Calibration required before values can be returned.")
-            # raise RuntimeWarning("Arm is not calibrated. Raw unprocessed values are being returned")
+
+        # NOTE: get_joint_state returns the position of all actuators on the dynamixel robot (gripper incuded if any)
+        # We expect wouldn't consider the gripper a joint but to stay similar to the other robots,
+        # we follow this convention to not break too many things.
 
         # process raw joint values
         readings = self._driver.get_joints()
@@ -121,75 +118,56 @@ class DynamixelRobot(Robot):
             assert self._gripper_open_close is not None
             open_angle, close_angle = self._gripper_open_close
             gripper_norm = (gripper_raw - open_angle) / (close_angle - open_angle)
-            gripper_processed = np.clip(gripper_norm, 0, 1)
+            gripper_processed = np.clip(gripper_norm, 0, 1) 
 
         # combine and return results
         positions = arm_calibrated if gripper_processed is None \
             else np.append(arm_calibrated, gripper_processed) 
-        assert positions.size == self.num_actuators()
+        assert len(positions) == len(self._all_ids)
         return self._smooth(positions)
-
-    def get_joint_state(self) -> np.ndarray:
-        """Returns the positions of arm joints in radians."""
-        return  self._get_joint_state()[:self.num_dofs()]
     
-    def get_gripper_state(self) -> float | None:
-        """Returns the normalized gripper position, if present. Otherwise None"""
-        return self._get_joint_state()[-1] if self._has_gripper else None
-
     def command_joint_state(self, joint_state: np.ndarray):
-        """Send position commands to arm joints. 
+        """Send position commands to all actuators. 
+        If gripper is present, the last element should be normalized to [0,1] 
         
-        :param joint_state: Target positions in radians
-        # TODO test
+        :param joint_state: target positions in for all actuators 
         """
+        # NOTE: command_joint_state set the position of all actuators (gripper incuded if any)
+        # Again we expect wouldn't consider the gripper a joint 
+        # but we follow this convention for compatability.
+
         # validate input
-        if len(joint_state) != self.num_dofs():
-            raise ValueError(f"Expected {self.num_dofs()} joints values, got {len(joint_state)}")
+        if self._has_gripper:
+            if len(joint_state) != len(self._all_ids):
+                raise ValueError(f"Expected {self._all_ids} ({self.num_dofs()} arm joints + gripper) values, got {len(joint_state)} instead")
+            if not (0 <= joint_state[-1] <= 1):
+                raise ValueError(f"Normalized gripper value must be in [0,1], got {joint_state[-1]}")
+        else:
+            if len(joint_state) != self.num_dofs():
+                raise ValueError(f"Expected {self.num_dofs()} (arm joints) values, got {len(joint_state)}")
         
         # allow movement only when calibrated 
         if self._is_calibrated == False:
             raise RuntimeError("Arm not calibrated. Calibration required before moving")
 
-        # convert joint values to raw values 
-        joint_raw = joint_state / self._joint_signs - self._joint_offsets
+        # process arm values 
+        arm = joint_state[:self.num_dofs()] / self._joint_signs - self._joint_offsets
 
-        #  append gripper current value (if it exists)
+        # process gripper value (if exists)
+        gripper = np.array([])
         if self._has_gripper:
-            gripper_raw = self._driver.get_joints()[-1]
-            all_raw = np.append(joint_raw, gripper_raw)
-        else:
-            all_raw = joint_raw
+            open_angle, close_angle = self._gripper_open_close
+            gripper = joint_state[-1] * (close_angle - open_angle) + open_angle
 
         # set actuators
-        self._driver.set_joints(all_raw.tolist())
+        act_all = np.append(arm, gripper) if self._has_gripper else arm
+        self._driver.set_joints(act_all.tolist())
 
-    def command_gripper_state(self, state: float):
-        """Send position command to gripper.
-        
-        :param state: Normalized gripper value in [0,1], where 0=open, 1=closed
-        # TODO test
-        """
-        # validate input
-        if not self._has_gripper:
-            raise RuntimeError("Called command_gripper_state method when there is no gripper")
-        if not (0 <= state <= 1):
-            raise ValueError(f"Normalized gripper value must be in [0,1], got {state}")
-
-        # convert normalized value to raw value
-        open_angle, close_angle = self._gripper_open_close
-        gripper_raw = state * (close_angle - open_angle) + open_angle
-
-        # set actuators
-        joint_raw = self._driver.get_joints()[:self.num_dofs()]
-        all_raw : np.ndarray = np.append(joint_raw, gripper_raw)
-        self._driver.set_joints(all_raw.tolist())
-        
     def _get_wrapped_error(self, pose_ref : np.ndarray) -> np.ndarray:
         """Returns the wrapped error between current arm pose and reference pose, in radians."""
         # get raw error
-        assert pose_ref.size == self.num_dofs() # pose_ref is desired positions (rad)
-        arm_pos = self.get_joint_state()
+        assert pose_ref.size == self.num_dofs()
+        arm_pos = self.get_joint_state()[:self.num_dofs()]
         error = pose_ref - arm_pos
 
         # return wrapped error
@@ -209,34 +187,12 @@ class DynamixelRobot(Robot):
         error = self._get_wrapped_error(pose_ref)        
         error_abs = np.abs(error)
         within_bounds = bool(np.all(error_abs <= ERROR_MARGIN))
-        arm_pos = self.get_joint_state()
         
-        # move cursor up for table reprint
-        if self._table_printed:
-            print(f"\033[{len(arm_pos) + 6}A", end="") 
-        
-        # print table
-        print("=" * 75) 
-        print("REAL-TIME JOINT ERROR MONITORING")
-        print("=" * 75)
-        print(f"{'Joint':>6} | {'Target (°)':>10} | {'Actual (°)':>10} | {'Error (°)':>10} | {'Error (rad)':>12}")
-        print("-" * 75)
-        for i in range(len(arm_pos)):
-            id = self._joint_ids[i]                
-            target_deg = np.degrees(pose_ref[i])
-            actual_deg = np.degrees(arm_pos[i])
-            error_deg = np.rad2deg(error[i])
-            error_rad = error[i]
-            print(f"{id:6d} | {target_deg:10.1f} | {actual_deg:10.1f} | {error_deg:10.1f} | {error_rad:12.2f}")
-        
-        # print feedback line
-        msg = (f"Close to reference position, keep arm stable" if within_bounds 
-            else f"Arm deviation too far. Keep all joint errors below {np.rad2deg(ERROR_MARGIN):.1f}°")
-        print(f"{msg}", end="\033[K\n") # \033[K ANSI code clears from cursor to end of line,
-
-        # note table print
-        self._table_printed = True
-
+        # print single line status
+        msg = (f"✓" if within_bounds else f"✗ Keep errors < {np.rad2deg(ERROR_MARGIN):.1f}°")
+        joint_errors = " | ".join([f"J{id}: {np.rad2deg(error[i]):.1f}°" for i, id in enumerate(self._joint_ids)])
+        print(f"\r[{msg}] {joint_errors}", end="\033[K")
+    
         # return align status
         return within_bounds
         
@@ -276,7 +232,8 @@ class DynamixelRobot(Robot):
             time.sleep(0.05)
 
         # calibrate on stable
-        calibrated = self._set_joint_offsets(pose_ref)        
+        calibrated = self._set_joint_offsets(pose_ref)
+        print("\n")        
         if not calibrated:
             print("Calibration failed")
 
@@ -295,7 +252,7 @@ class DynamixelRobot(Robot):
             return False
 
         # set joint offset
-        arm_pos = self.get_joint_state()
+        arm_pos = self.get_joint_state()[:self.num_dofs()]
         error = pose_ref - arm_pos
         wrap_count = np.round(error / (2 * np.pi))
         offsets =  wrap_count * (2 * np.pi)
@@ -318,20 +275,30 @@ class DynamixelRobot(Robot):
             the last element is normalized to [0,1] where 0 = fully open,
             1 = fully closed.
         """
-        return {"all_state": self.get_joint_state(),
-                "joint_state": self.get_joint_state(),
-                "gripper_state": self.get_gripper_state(),}
+        # get states
+        joint_positions = self.get_joint_state()
+        gripper_position = joint_positions[-1] if self.has_gripper() else None
+        joint_velocities = np.zeros(6)  # not implemented
+        ee_pos_quat = np.zeros(6)   # not implemented
 
+        return {
+            "joint_positions": joint_positions,     # NOTE: Again, joint positions contains gripper pos. To not break things  
+            "joint_velocities": joint_velocities,
+            "ee_pos_quat": ee_pos_quat,
+            "gripper_position": gripper_position}
+         
     def print_status(self):
         """Prints robot status"""
-        q = np.rad2deg(self.get_joint_state())
-        gripper = self.get_gripper_state()
-        joint_str = "Joints: "
-        for i, angle in enumerate(q):
-            joint_str += f"J{i+1}: {angle:6.1f}°  "
-        gripper_str = "Gripper: Not available" if gripper == None else\
-              f"Gripper (0: open; 1: closed): {gripper:2.1f}"
-        print(joint_str + " | " + gripper_str, end="\r")
+        # get obs
+        obs = self.get_observations()
+        q = obs["joint_positions"][:self.num_dofs()]
+        s = obs["gripper_position"]
+        
+        # print
+        q_deg = np.degrees(q)
+        arm = "  ".join([f"J{i+1}: {deg:6.1f}°" for i, deg in enumerate(q_deg)])
+        grip = f"Gripper: {s:2.1f}" if s is not None else "Gripper: Not available"
+        print(f"{arm} | {grip}", end="\r")
 
 
     # FORCE CONTROL METHODS
@@ -341,7 +308,7 @@ class DynamixelRobot(Robot):
         self._tau_max = self._get_servo_torque_limit()
 
     def _get_servo_torque_limit(self) -> np.ndarray:
-        """Returns the max torque (in Nm) each arm servo can exert. Shape: (num_dof,)"""
+        """Returns the max torque (in Nm) each arm servo can exert. Shape: (num_joints,)"""
         # check prerequisites
         if isinstance(self._driver, FakeDynamixelDriver):
             raise RuntimeError("No torque limit for a fake driver")
@@ -375,8 +342,9 @@ class DynamixelRobot(Robot):
         # set torque
         self._driver.verify_operating_mode(CURRENT_CONTROL_MODE)
         out = self._get_attentuated_torque_for_wrench_at_TCP(wrench)
-        factor, torque = out["factor"], out["torque"]     
-        self.set_torque(torque)
+        factor, torque = out["factor"], out["torque"]  
+        assert len(torque) == self.num_dofs()   
+        self.set_arm_torque(torque)
         
         # print actual wrench
         t = wrench  # target
@@ -389,7 +357,7 @@ class DynamixelRobot(Robot):
         """Gets a scaled down wrench that is producable by the robot and the scale factor"""
         
         # finds theoretical required torque
-        q = self.get_joint_state()
+        q = self.get_joint_state()[:self.num_dofs()]
         assert self._kin_model is not None
         J = self._kin_model.get_jacobian_TCP(q)
         tau_req = J.T @ wrench
@@ -410,17 +378,17 @@ class DynamixelRobot(Robot):
             "torque": tau_atten  
         }
 
-    def set_torque(self, torque: np.ndarray):
-        """Sets the torque of arm actuators."""
+    def set_arm_torque(self, torque: np.ndarray):
+        """Sets the torque of arm actuators only."""
         # validate input
-        if len(torque) != self.num_dofs:
-            raise ValueError("Torque provided is more than arm DOF.")
+        if len(torque) != self.num_dofs():
+            raise ValueError(f"Expected torque to be len {self.num_dofs()}, got len {len(torque)} instead")
         
         # set torque
-        torque_processed = list(torque * self._joint_signs) # re
+        torque_processed = list(torque * self._joint_signs)
         if self._has_gripper:
-            torque_processed.append(0)  # gripper servo is idle
-        assert len(torque_processed) == self.num_actuators
+            torque_processed.append(0)  # gripper idle
+        assert len(torque_processed) == self.num_dofs()
         self._driver.set_torque(torque_processed)
     
     def set_current_control_mode(self):
@@ -469,41 +437,7 @@ class DynamixelRobotConfig:
         assert self.gripper_config[0] not in self.joint_ids     # no duplicates
         assert -360 < self.gripper_config[1] < 360              # valid range
         assert -360 < self.gripper_config[2] < 360              # valid range
-        
-    def __str__(self) -> str:
-        """Complete string representation with all configuration details."""
-
-        info_lines = [
-            f"DynamixelRobotConfig:",
-            f"  Joints: {len(self.joint_ids)} servos",
-            f"  IDs: {list(self.joint_ids)}",
-            f"  Signs: {list(self.joint_signs)}",
-        ]
-        if self.servo_types == None:
-            info_lines.extend([
-                f"  Servo types: Not specified"
-                ])
-        else:
-            info_lines.extend([
-                f"  Servo types: {list(self.servo_types)}"
-                ])
-                    
-        if self.gripper_config == None:
-            info_lines.extend([
-                f"  Gripper: None"
-                ])
-        else:
-            id, open_pos, close_pos = self.gripper_config
-            info_lines.extend([
-                f"  Gripper:",
-                f"    ID: {id}",
-                f"    Open position: {open_pos}°",
-                f"    Close position: {close_pos}°",
-                f"    Range: {close_pos - open_pos}°"
-                ])
-            
-        return "\n".join(info_lines)
-    
+         
     def make_robot(self, port: str = "/dev/ttyUSB0") -> DynamixelRobot:
         return DynamixelRobot(
             joint_ids=tuple(self.joint_ids),
